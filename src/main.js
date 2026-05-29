@@ -177,7 +177,7 @@ function getOverlayStyle() {
 
 function getBackgroundStyle() {
   if (state.backgroundUrl) {
-    return `background-image:url(${JSON.stringify(state.backgroundUrl).slice(1, -1)});`
+    return `background-image:url('${state.backgroundUrl}');`
   }
 
   return 'background-image:linear-gradient(135deg, #0f172a, #1d4ed8 50%, #38bdf8);'
@@ -227,6 +227,11 @@ function syncColor(index, value) {
   renderPreview()
 }
 
+function normalizeColor(value) {
+  const withHash = value.startsWith('#') ? value : `#${value}`
+  return withHash.toLowerCase()
+}
+
 backgroundInput.addEventListener('change', (event) => {
   const [file] = event.target.files ?? []
 
@@ -262,6 +267,10 @@ Object.entries(paddingInputs).forEach(([side, input]) => {
 })
 
 colorFields.addEventListener('input', (event) => {
+  if (!event.target.classList.contains('color-picker')) {
+    return
+  }
+
   const index = Number(event.target.dataset.index)
 
   if (Number.isNaN(index)) {
@@ -269,6 +278,20 @@ colorFields.addEventListener('input', (event) => {
   }
 
   syncColor(index, event.target.value)
+})
+
+colorFields.addEventListener('change', (event) => {
+  if (!event.target.classList.contains('color-text')) {
+    return
+  }
+
+  const index = Number(event.target.dataset.index)
+
+  if (Number.isNaN(index)) {
+    return
+  }
+
+  syncColor(index, normalizeColor(event.target.value.trim()))
 })
 
 colorFields.addEventListener('click', (event) => {
