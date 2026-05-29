@@ -397,9 +397,42 @@ function sortPreviewIcons() {
 
 const previewTileSize = 64
 let cachedGlyphMap = null
-let cachedPreviewBackground = null
-let cachedPreviewBackgroundUrl = null
 let previewRenderVersion = 0
+let previewStructureKey = ''
+
+function getPreviewStructureKey() {
+  return `${state.style}:${state.sortOrder}`
+}
+
+function getPreviewGradient() {
+  if (state.colors.length === 1) {
+    return ''
+  }
+  const stopStep = 100 / Math.max(state.colors.length - 1, 1)
+  const stops = state.colors.map((color, index) => `${color} ${Math.round(index * stopStep)}%`)
+  return `linear-gradient(135deg, ${stops.join(', ')})`
+}
+
+function updatePreviewStyles() {
+  const { family, weight } = exportFontVariants[state.style]
+  const hasBackground = Boolean(state.backgroundUrl)
+  const hasGradient = state.colors.length > 1
+  const x = 50 + state.offsetX * 0.5
+  const y = 50 + state.offsetY * 0.5
+  const iconSizePercent = Math.max(state.size, 0)
+
+  previewGrid.style.setProperty('--preview-icon-font-family', family)
+  previewGrid.style.setProperty('--preview-icon-font-weight', weight)
+  previewGrid.style.setProperty('--preview-icon-size', `${iconSizePercent}%`)
+  previewGrid.style.setProperty('--preview-icon-offset-x', `${x}%`)
+  previewGrid.style.setProperty('--preview-icon-offset-y', `${y}%`)
+  previewGrid.style.setProperty('--preview-icon-color', state.colors[0] ?? '#ffffff')
+  previewGrid.style.setProperty('--preview-icon-gradient', getPreviewGradient())
+  previewGrid.style.setProperty('--preview-background-image', hasBackground ? `url("${state.backgroundUrl}")` : 'none')
+  previewGrid.classList.toggle('preview-grid--with-background', hasBackground)
+  previewGrid.classList.toggle('preview-grid--transparent', !hasBackground)
+  previewGrid.classList.toggle('preview-grid--gradient', hasGradient)
+}
 
 async function renderPreview() {
   const version = ++previewRenderVersion
@@ -412,61 +445,44 @@ async function renderPreview() {
     cachedGlyphMap = getGlyphMap()
   }
 
-  if (state.backgroundUrl !== cachedPreviewBackgroundUrl) {
-    cachedPreviewBackground = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
-    cachedPreviewBackgroundUrl = state.backgroundUrl
-  }
-  if (version !== previewRenderVersion) return
-
   const glyphMap = cachedGlyphMap
-  const backgroundImage = cachedPreviewBackground
-  const totalIcons = state.previewIcons.length
-  const fragment = document.createDocumentFragment()
+  const structureKey = getPreviewStructureKey()
 
-  for (let index = 0; index < totalIcons; index += 1) {
-    const iconClassName = state.previewIcons[index]
-    const iconName = stripFaPrefix(iconClassName)
+  if (previewStructureKey !== structureKey) {
+    const totalIcons = state.previewIcons.length
+    const fragment = document.createDocumentFragment()
 
-    const card = document.createElement('article')
-    card.className = 'preview-card'
-    card.setAttribute('aria-label', `Preview tile ${index + 1}`)
+    for (let index = 0; index < totalIcons; index += 1) {
+      const iconClassName = state.previewIcons[index]
+      const iconName = stripFaPrefix(iconClassName)
+      const glyph = glyphMap.get(iconClassName) ?? ''
 
-    const tile = document.createElement('div')
-    tile.className = `preview-tile${state.backgroundUrl ? '' : ' preview-tile--transparent'}`
+      const card = document.createElement('article')
+      card.className = 'preview-card'
+      card.setAttribute('aria-label', `Preview tile ${index + 1}`)
 
-    const canvas = document.createElement('canvas')
-    canvas.width = previewTileSize
-    canvas.height = previewTileSize
-    canvas.className = 'preview-canvas'
+      const tile = document.createElement('div')
+      tile.className = 'preview-tile'
 
-    const context = canvas.getContext('2d')
+      const glyphElement = document.createElement('span')
+      glyphElement.className = 'preview-glyph'
+      glyphElement.textContent = glyph
+      glyphElement.setAttribute('aria-hidden', 'true')
 
-    if (backgroundImage) {
-      drawBackgroundImageCover(context, backgroundImage, previewTileSize)
+      const name = document.createElement('p')
+      name.className = 'preview-name'
+      name.textContent = iconName
+
+      tile.append(glyphElement)
+      card.append(tile, name)
+      fragment.append(card)
     }
 
-    const glyph = glyphMap.get(iconClassName)
-    if (glyph) {
-      const iconSize = Math.max(previewTileSize * (state.size / 100), 1)
-      const x = previewTileSize * ((50 + state.offsetX * 0.5) / 100)
-      const y = previewTileSize * ((50 + state.offsetY * 0.5) / 100)
-      context.font = `${weight} ${iconSize}px ${family}`
-      context.textAlign = 'center'
-      context.textBaseline = 'middle'
-      context.fillStyle = createIconFill(context, previewTileSize)
-      context.fillText(glyph, x, y)
-    }
-
-    const name = document.createElement('p')
-    name.className = 'preview-name'
-    name.textContent = iconName
-
-    tile.append(canvas)
-    card.append(tile, name)
-    fragment.append(card)
+    previewGrid.replaceChildren(fragment)
+    previewStructureKey = structureKey
   }
 
-  previewGrid.replaceChildren(fragment)
+  updatePreviewStyles()
 }
 
 function renderColorFields() {
