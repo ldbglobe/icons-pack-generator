@@ -464,15 +464,11 @@ function getGlyphMap() {
 function toSafeFilenamePart(value) {
   return value
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-+|-+$/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
-function getExportIconNames(style, glyphMap) {
-  if (!style) {
-    return []
-  }
-
+function getExportIconNames(glyphMap) {
   return [...glyphMap.keys()]
     .filter((iconClass) => iconClass.startsWith('fa-'))
     .map((iconClass) => iconClass.slice(3))
@@ -591,10 +587,10 @@ async function exportIconPack() {
 
   try {
     const glyphMap = getGlyphMap()
-    const icons = getExportIconNames(state.style, glyphMap)
+    const icons = getExportIconNames(glyphMap)
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
-    const filenamePrefix = state.backgroundName ? `${toSafeFilenamePart(state.backgroundName)}-` : ''
+    const filenamePrefix = state.backgroundName ? `${state.backgroundName}-` : ''
     await document.fonts.load(`${weight} 100px ${family}`)
 
     const zip = new JSZip()
@@ -731,7 +727,7 @@ backgroundInput.addEventListener('change', (event) => {
   }
 
   state.backgroundUrl = URL.createObjectURL(file)
-  state.backgroundName = file.name.replace(/\.[^.]*$/, '')
+  state.backgroundName = toSafeFilenamePart(file.name.replace(/\.[^.]*$/, ''))
   renderPreview()
 })
 
