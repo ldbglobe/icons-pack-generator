@@ -274,7 +274,7 @@ app.innerHTML = `
             </div>
             <label class="field">
               <span>Color</span>
-              <input id="border-color" class="color-picker" type="color" value="#ffffff" />
+              <input id="border-color" class="color-picker" type="color" value="#ffffff" aria-label="Border color" />
             </label>
           </div>
         </fieldset>
@@ -362,7 +362,9 @@ function rerollPreviewIcons() {
 
   for (let index = indexes.length - 1; index > 0; index -= 1) {
     const randomIndex = Math.floor(Math.random() * (index + 1))
-    ;[indexes[index], indexes[randomIndex]] = [indexes[randomIndex], indexes[index]]
+    const temporaryIndex = indexes[index]
+    indexes[index] = indexes[randomIndex]
+    indexes[randomIndex] = temporaryIndex
   }
 
   state.previewIndexes = indexes.slice(0, previewCount)
@@ -371,14 +373,28 @@ function rerollPreviewIcons() {
 function renderPreview() {
   const fontClassName = fontClassNames[state.style]
   const icons = iconSets[state.style]
+  const fragment = document.createDocumentFragment()
 
-  previewGrid.innerHTML = Array.from({ length: previewCount }, (_, index) => `
-    <article class="preview-card" aria-label="Preview tile ${index + 1}" style="${getCardStyle()}">
-      <div class="icon-overlay" style="${getOverlayStyle()}">
-        <i class="${fontClassName} ${icons[state.previewIndexes[index]]} preview-icon" aria-hidden="true"></i>
-      </div>
-    </article>
-  `).join('')
+  for (let index = 0; index < previewCount; index += 1) {
+    const card = document.createElement('article')
+    card.className = 'preview-card'
+    card.setAttribute('aria-label', `Preview tile ${index + 1}`)
+    card.style.cssText = getCardStyle()
+
+    const overlay = document.createElement('div')
+    overlay.className = 'icon-overlay'
+    overlay.style.cssText = getOverlayStyle()
+
+    const icon = document.createElement('i')
+    icon.className = `${fontClassName} ${icons[state.previewIndexes[index] % icons.length]} preview-icon`
+    icon.setAttribute('aria-hidden', 'true')
+
+    overlay.append(icon)
+    card.append(overlay)
+    fragment.append(card)
+  }
+
+  previewGrid.replaceChildren(fragment)
 }
 
 function renderColorFields() {
@@ -388,7 +404,7 @@ function renderColorFields() {
         <label class="field color-field">
           <span>Color ${index + 1}</span>
           <div class="color-input-row">
-            <input class="color-picker" data-index="${index}" type="color" value="${color}" />
+            <input class="color-picker" data-index="${index}" type="color" value="${color}" aria-label="Icon color ${index + 1}" />
             <button
               type="button"
               class="icon-button"
