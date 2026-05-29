@@ -58,12 +58,9 @@ const previewCount = 12
 const state = {
   backgroundUrl: '',
   style: 'solid',
-  padding: {
-    top: 10,
-    right: 10,
-    bottom: 10,
-    left: 10,
-  },
+  offsetX: 0,
+  offsetY: 0,
+  size: 80,
   colors: [...defaultColors],
 }
 
@@ -92,28 +89,23 @@ app.innerHTML = `
           </select>
         </label>
 
-        <fieldset class="padding-group">
-          <legend>Icon padding (%)</legend>
-          <div class="padding-fields">
-            <div class="padding-field">
-              <span>Top</span>
-              <input id="padding-top-range" type="range" min="0" max="50" step="1" value="10" />
-              <input id="padding-top" type="number" min="0" max="50" step="1" value="10" />
+        <fieldset class="glyph-group">
+          <legend>Glyph position &amp; size</legend>
+          <div class="glyph-fields">
+            <div class="glyph-field">
+              <span>X</span>
+              <input id="offset-x-range" type="range" min="-100" max="100" step="1" value="0" />
+              <input id="offset-x" type="number" min="-100" max="100" step="1" value="0" />
             </div>
-            <div class="padding-field">
-              <span>Right</span>
-              <input id="padding-right-range" type="range" min="0" max="50" step="1" value="10" />
-              <input id="padding-right" type="number" min="0" max="50" step="1" value="10" />
+            <div class="glyph-field">
+              <span>Y</span>
+              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="0" />
+              <input id="offset-y" type="number" min="-100" max="100" step="1" value="0" />
             </div>
-            <div class="padding-field">
-              <span>Bottom</span>
-              <input id="padding-bottom-range" type="range" min="0" max="50" step="1" value="10" />
-              <input id="padding-bottom" type="number" min="0" max="50" step="1" value="10" />
-            </div>
-            <div class="padding-field">
-              <span>Left</span>
-              <input id="padding-left-range" type="range" min="0" max="50" step="1" value="10" />
-              <input id="padding-left" type="number" min="0" max="50" step="1" value="10" />
+            <div class="glyph-field">
+              <span>Size</span>
+              <input id="glyph-size-range" type="range" min="10" max="100" step="1" value="80" />
+              <input id="glyph-size" type="number" min="10" max="100" step="1" value="80" />
             </div>
           </div>
         </fieldset>
@@ -150,15 +142,18 @@ const colorFields = document.querySelector('#color-fields')
 const addColorButton = document.querySelector('#add-color')
 const resetColorsButton = document.querySelector('#reset-colors')
 const rerollButton = document.querySelector('#reroll-button')
-const paddingInputs = {
-  top: { range: document.querySelector('#padding-top-range'), number: document.querySelector('#padding-top') },
-  right: { range: document.querySelector('#padding-right-range'), number: document.querySelector('#padding-right') },
-  bottom: { range: document.querySelector('#padding-bottom-range'), number: document.querySelector('#padding-bottom') },
-  left: { range: document.querySelector('#padding-left-range'), number: document.querySelector('#padding-left') },
+const glyphInputs = {
+  offsetX: { range: document.querySelector('#offset-x-range'), number: document.querySelector('#offset-x') },
+  offsetY: { range: document.querySelector('#offset-y-range'), number: document.querySelector('#offset-y') },
+  size: { range: document.querySelector('#glyph-size-range'), number: document.querySelector('#glyph-size') },
 }
 
-function clampPadding(value) {
-  return Math.max(0, Math.min(50, Number(value) || 0))
+function clampOffset(value) {
+  return Math.max(-100, Math.min(100, Number(value) || 0))
+}
+
+function clampSize(value) {
+  return Math.max(10, Math.min(100, Number(value) || 0))
 }
 
 function isValidHexColor(value) {
@@ -171,12 +166,14 @@ function getRandomIcon(style) {
 }
 
 function getOverlayStyle() {
-  const padding = `${state.padding.top}% ${state.padding.right}% ${state.padding.bottom}% ${state.padding.left}%`
   const gradient = state.colors.length === 1
     ? state.colors[0]
     : `linear-gradient(135deg, ${state.colors.join(', ')})`
 
-  return `padding:${padding};--icon-fill:${gradient};`
+  const left = 50 + state.offsetX * 0.5
+  const top = 50 + state.offsetY * 0.5
+
+  return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${state.size}cqmin;--icon-fill:${gradient};`
 }
 
 function getBackgroundStyle() {
@@ -261,20 +258,22 @@ styleSelect.addEventListener('change', (event) => {
   renderPreview()
 })
 
-Object.entries(paddingInputs).forEach(([side, { range, number }]) => {
-  range.addEventListener('input', (event) => {
-    const nextValue = clampPadding(event.target.value)
-    state.padding[side] = nextValue
-    number.value = nextValue
-    renderPreview()
-  })
-  number.addEventListener('input', (event) => {
-    const nextValue = clampPadding(event.target.value)
-    state.padding[side] = nextValue
-    range.value = nextValue
-    renderPreview()
-  })
-})
+function syncGlyphInput(key, clampFn, event) {
+  const nextValue = clampFn(event.target.value)
+  state[key] = nextValue
+  glyphInputs[key].range.value = nextValue
+  glyphInputs[key].number.value = nextValue
+  renderPreview()
+}
+
+glyphInputs.offsetX.range.addEventListener('input', (event) => syncGlyphInput('offsetX', clampOffset, event))
+glyphInputs.offsetX.number.addEventListener('input', (event) => syncGlyphInput('offsetX', clampOffset, event))
+
+glyphInputs.offsetY.range.addEventListener('input', (event) => syncGlyphInput('offsetY', clampOffset, event))
+glyphInputs.offsetY.number.addEventListener('input', (event) => syncGlyphInput('offsetY', clampOffset, event))
+
+glyphInputs.size.range.addEventListener('input', (event) => syncGlyphInput('size', clampSize, event))
+glyphInputs.size.number.addEventListener('input', (event) => syncGlyphInput('size', clampSize, event))
 
 colorFields.addEventListener('input', (event) => {
   if (!event.target.classList.contains('color-picker')) {
