@@ -199,6 +199,17 @@ const fontClassNames = {
 const defaultColors = ['#ffffff']
 const previewCount = 48
 const previewIndexPoolSize = Math.min(...Object.values(iconSets).map((iconSet) => iconSet.length))
+const transparentTileDarkThreshold = 0.55
+const maxRgbChannelValue = 255
+const transparentTileStyles = {
+  dark: '--transparent-base:#2f2f2f;--transparent-accent:#4a4a4a;',
+  light: '--transparent-base:#d7d7d7;--transparent-accent:#efefef;',
+}
+const rgbBrightnessWeights = {
+  red: 0.299,
+  green: 0.587,
+  blue: 0.114,
+}
 
 const state = {
   backgroundUrl: '',
@@ -304,14 +315,21 @@ function clampSize(value) {
 
 function parseHexColor(color) {
   const hex = color.replace('#', '')
-  if (hex.length !== 6) {
+  const fullHex = hex.length === 3
+    ? hex
+      .split('')
+      .map((character) => `${character}${character}`)
+      .join('')
+    : hex
+
+  if (fullHex.length !== 6) {
     return null
   }
 
   return {
-    r: Number.parseInt(hex.slice(0, 2), 16),
-    g: Number.parseInt(hex.slice(2, 4), 16),
-    b: Number.parseInt(hex.slice(4, 6), 16),
+    r: Number.parseInt(fullHex.slice(0, 2), 16),
+    g: Number.parseInt(fullHex.slice(2, 4), 16),
+    b: Number.parseInt(fullHex.slice(4, 6), 16),
   }
 }
 
@@ -321,7 +339,7 @@ function getAverageGlyphBrightness() {
     .filter((color) => color !== null)
 
   if (!validColors.length) {
-    return 1
+    return 0.5
   }
 
   const { red, green, blue } = validColors.reduce(
@@ -334,7 +352,14 @@ function getAverageGlyphBrightness() {
   )
 
   const colorCount = validColors.length
-  const averageBrightness = (0.299 * (red / colorCount) + 0.587 * (green / colorCount) + 0.114 * (blue / colorCount)) / 255
+  const averageRed = red / colorCount
+  const averageGreen = green / colorCount
+  const averageBlue = blue / colorCount
+  const averageBrightness = (
+    rgbBrightnessWeights.red * averageRed
+    + rgbBrightnessWeights.green * averageGreen
+    + rgbBrightnessWeights.blue * averageBlue
+  ) / maxRgbChannelValue
   return averageBrightness
 }
 
@@ -353,11 +378,11 @@ function getCardStyle() {
   }
 
   const brightness = getAverageGlyphBrightness()
-  if (brightness >= 0.55) {
-    return '--transparent-base:#2f2f2f;--transparent-accent:#4a4a4a;'
+  if (brightness >= transparentTileDarkThreshold) {
+    return transparentTileStyles.dark
   }
 
-  return '--transparent-base:#d7d7d7;--transparent-accent:#efefef;'
+  return transparentTileStyles.light
 }
 
 function rerollPreviewIcons() {
