@@ -125,7 +125,7 @@ app.innerHTML = `
             <button id="add-color" type="button" class="secondary-button">Add color</button>
             <button id="reset-colors" type="button" class="secondary-button">Reset</button>
           </div>
-          <p class="hint">Multiple colors render as a gradient to support duotone-style previews.</p>
+          <p class="hint">Multiple colors render as a gradient to support duotone-style previews. Up to four colors are supported to keep the controls readable.</p>
         </fieldset>
       </form>
     </section>
@@ -159,6 +159,10 @@ const paddingInputs = {
 
 function clampPadding(value) {
   return Math.max(0, Math.min(96, Number(value) || 0))
+}
+
+function isValidHexColor(value) {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)
 }
 
 function getRandomIcon(style) {
@@ -221,7 +225,7 @@ function renderColorFields() {
 }
 
 function syncColor(index, value) {
-  const validColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) ? value : state.colors[index]
+  const validColor = isValidHexColor(value) ? value : state.colors[index]
   state.colors[index] = validColor
   renderColorFields()
   renderPreview()
