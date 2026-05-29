@@ -207,10 +207,14 @@ function toSafeFilenamePart(value) {
     .replace(/^-+|-+$/g, '')
 }
 
+function stripFaPrefix(iconClass) {
+  return iconClass.startsWith('fa-') ? iconClass.slice(3) : iconClass
+}
+
 function getExportIconNames() {
   return iconSets[state.style]
     .filter((iconClass) => iconClass.startsWith('fa-'))
-    .map((iconClass) => iconClass.slice(3))
+    .map(stripFaPrefix)
     .sort((left, right) => left.localeCompare(right))
 }
 
@@ -405,7 +409,7 @@ async function renderPreview() {
 
   for (let index = 0; index < totalIcons; index += 1) {
     const iconClassName = state.previewIcons[index]
-    const iconName = iconClassName.startsWith('fa-') ? iconClassName.slice(3) : iconClassName
+    const iconName = stripFaPrefix(iconClassName)
 
     const card = document.createElement('article')
     card.className = 'preview-card'
