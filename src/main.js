@@ -196,7 +196,7 @@ const fontClassNames = {
   brands: 'fa-brands',
 }
 
-const defaultColors = ['#ffffff']
+const defaultColors = ['#000000']
 const previewCount = 48
 const previewIndexPoolSize = Math.min(...Object.values(iconSets).map((iconSet) => iconSet.length))
 
@@ -206,9 +206,6 @@ const state = {
   offsetX: 0,
   offsetY: 0,
   size: 50,
-  borderRadius: 0,
-  borderSize: 0,
-  borderColor: '#ffffff',
   colors: [...defaultColors],
   previewIndexes: [],
 }
@@ -259,26 +256,6 @@ app.innerHTML = `
           </div>
         </fieldset>
 
-        <fieldset class="glyph-group">
-          <legend>Border</legend>
-          <div class="glyph-fields">
-            <div class="glyph-field">
-              <span>Radius</span>
-              <input id="border-radius-range" type="range" min="0" max="100" step="1" value="0" />
-              <input id="border-radius" type="number" min="0" max="100" step="1" value="0" />
-            </div>
-            <div class="glyph-field">
-              <span>Size</span>
-              <input id="border-size-range" type="range" min="0" max="20" step="1" value="0" />
-              <input id="border-size" type="number" min="0" max="20" step="1" value="0" />
-            </div>
-            <label class="field">
-              <span>Color</span>
-              <input id="border-color" class="color-picker" type="color" value="#ffffff" aria-label="Border color" />
-            </label>
-          </div>
-        </fieldset>
-
         <fieldset class="colors-group">
           <legend>Icon colors</legend>
           <div id="color-fields" class="color-fields" aria-live="polite"></div>
@@ -315,10 +292,7 @@ const glyphInputs = {
   offsetX: { range: document.querySelector('#offset-x-range'), number: document.querySelector('#offset-x') },
   offsetY: { range: document.querySelector('#offset-y-range'), number: document.querySelector('#offset-y') },
   size: { range: document.querySelector('#glyph-size-range'), number: document.querySelector('#glyph-size') },
-  borderRadius: { range: document.querySelector('#border-radius-range'), number: document.querySelector('#border-radius') },
-  borderSize: { range: document.querySelector('#border-size-range'), number: document.querySelector('#border-size') },
 }
-const borderColorInput = document.querySelector('#border-color')
 
 function clampOffset(value) {
   return Math.max(-100, Math.min(100, Number(value) || 0))
@@ -328,14 +302,6 @@ function clampSize(value) {
   return Math.max(10, Math.min(100, Number(value) || 0))
 }
 
-function clampBorderRadius(value) {
-  return Math.max(0, Math.min(100, Number(value) || 0))
-}
-
-function clampBorderSize(value) {
-  return Math.max(0, Math.min(20, Number(value) || 0))
-}
-
 function getOverlayStyle() {
   const gradient = state.colors.length === 1
     ? state.colors[0]
@@ -343,19 +309,16 @@ function getOverlayStyle() {
 
   const left = 50 + state.offsetX * 0.5
   const top = 50 + state.offsetY * 0.5
-  const effectiveSize = Math.max(0, state.size - 2 * state.borderSize)
 
-  return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${effectiveSize}cqmin;--icon-fill:${gradient};`
+  return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${state.size}cqmin;--icon-fill:${gradient};`
 }
 
 function getCardStyle() {
-  const borderStyle = `--card-border-radius:${state.borderRadius}%;--card-border-size:${state.borderSize};--card-border-color:${state.borderColor};`
-
   if (state.backgroundUrl) {
-    return `${borderStyle}background-image:url('${state.backgroundUrl}');`
+    return `background-image:url('${state.backgroundUrl}');`
   }
 
-  return borderStyle
+  return ''
 }
 
 function rerollPreviewIcons() {
@@ -469,15 +432,6 @@ glyphInputs.offsetY.number.addEventListener('input', (event) => syncGlyphInput('
 
 glyphInputs.size.range.addEventListener('input', (event) => syncGlyphInput('size', clampSize, event))
 glyphInputs.size.number.addEventListener('input', (event) => syncGlyphInput('size', clampSize, event))
-glyphInputs.borderRadius.range.addEventListener('input', (event) => syncGlyphInput('borderRadius', clampBorderRadius, event))
-glyphInputs.borderRadius.number.addEventListener('input', (event) => syncGlyphInput('borderRadius', clampBorderRadius, event))
-glyphInputs.borderSize.range.addEventListener('input', (event) => syncGlyphInput('borderSize', clampBorderSize, event))
-glyphInputs.borderSize.number.addEventListener('input', (event) => syncGlyphInput('borderSize', clampBorderSize, event))
-
-borderColorInput.addEventListener('input', (event) => {
-  state.borderColor = event.target.value.toLowerCase()
-  renderPreview()
-})
 
 colorFields.addEventListener('input', (event) => {
   if (!event.target.classList.contains('color-picker')) {
