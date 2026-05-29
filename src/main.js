@@ -17,6 +17,8 @@ const state = {
   exportFormat: 'png',
   exportSize: 512,
   isExporting: false,
+  exportProcessedCount: 0,
+  exportTotalCount: 0,
   previewIcons: [],
   sortOrder: 'asc',
 }
@@ -317,7 +319,14 @@ async function renderIconBlob({ glyph, size, format, backgroundImage }) {
 
 function updateExportButton() {
   exportButton.disabled = state.isExporting
-  exportButton.textContent = state.isExporting ? 'Exporting…' : 'Download icon pack ZIP'
+  if (!state.isExporting) {
+    exportButton.textContent = 'Download icon pack ZIP'
+    return
+  }
+
+  const total = state.exportTotalCount
+  const processed = Math.min(state.exportProcessedCount, total)
+  exportButton.textContent = total > 0 ? `Exporting… ${processed}/${total}` : 'Exporting…'
 }
 
 async function exportIconPack() {
@@ -334,12 +343,17 @@ async function exportIconPack() {
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
     const filenamePrefix = state.backgroundName ? `${state.backgroundName}-` : ''
+    state.exportProcessedCount = 0
+    state.exportTotalCount = icons.length
+    updateExportButton()
     await document.fonts.load(`${weight} 100px ${family}`)
 
     const zip = new JSZip()
     for (const iconName of icons) {
       const glyph = glyphMap.get(`fa-${iconName}`)
       if (!glyph) {
+        state.exportProcessedCount += 1
+        updateExportButton()
         continue
       }
 
@@ -350,13 +364,16 @@ async function exportIconPack() {
         backgroundImage,
       })
       zip.file(`${filenamePrefix}${iconName}.${state.exportFormat}`, iconBlob)
+      state.exportProcessedCount += 1
+      updateExportButton()
     }
 
     const archiveBlob = await zip.generateAsync({ type: 'blob' })
     const archiveUrl = URL.createObjectURL(archiveBlob)
     const link = document.createElement('a')
     link.href = archiveUrl
-    link.download = `${state.style}-icon-pack-${state.exportFormat}-${state.exportSize}.zip`
+    const zipFilenamePrefix = state.backgroundName ? `${state.backgroundName}-` : ''
+    link.download = `${zipFilenamePrefix}${state.style}-icon-pack-${state.exportFormat}-${state.exportSize}.zip`
     link.click()
     URL.revokeObjectURL(archiveUrl)
   } catch (error) {
@@ -365,6 +382,8 @@ async function exportIconPack() {
     alert(`Export failed: ${message}`)
   } finally {
     state.isExporting = false
+    state.exportProcessedCount = 0
+    state.exportTotalCount = 0
     updateExportButton()
   }
 }
