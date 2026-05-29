@@ -1,5 +1,7 @@
 import './style.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
+import JSZip from 'jszip'
+import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 
 const iconSets = {
   solid: [
@@ -218,6 +220,9 @@ const state = {
   offsetY: 20,
   size: 40,
   colors: [...defaultColors],
+  exportFormat: 'png',
+  exportSize: 512,
+  isExporting: false,
   previewIndexes: [],
 }
 
@@ -276,6 +281,30 @@ app.innerHTML = `
           </div>
           <p class="hint">Multiple colors render as a gradient. Up to four colors.</p>
         </fieldset>
+
+        <fieldset class="export-group">
+          <legend>Export settings</legend>
+          <div class="export-fields">
+            <label class="field">
+              <span>Format</span>
+              <select id="export-format">
+                <option value="png" selected>PNG (default)</option>
+                <option value="jpg">JPG (non-transparent)</option>
+                <option value="gif">GIF</option>
+                <option value="webp">WEBP</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Size</span>
+              <select id="export-size">
+                <option value="128">128</option>
+                <option value="256">256</option>
+                <option value="512" selected>512 (default)</option>
+              </select>
+            </label>
+          </div>
+          <button id="export-button" type="button" class="primary-button export-button">Download icon pack ZIP</button>
+        </fieldset>
       </form>
     </section>
 
@@ -299,6 +328,9 @@ const colorFields = document.querySelector('#color-fields')
 const addColorButton = document.querySelector('#add-color')
 const resetColorsButton = document.querySelector('#reset-colors')
 const rerollButton = document.querySelector('#reroll-button')
+const exportFormatSelect = document.querySelector('#export-format')
+const exportSizeSelect = document.querySelector('#export-size')
+const exportButton = document.querySelector('#export-button')
 const glyphInputs = {
   offsetX: { range: document.querySelector('#offset-x-range'), number: document.querySelector('#offset-x') },
   offsetY: { range: document.querySelector('#offset-y-range'), number: document.querySelector('#offset-y') },
@@ -370,6 +402,212 @@ function getOverlayStyle() {
   const left = 50 + state.offsetX * 0.5
   const top = 50 + state.offsetY * 0.5
   return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${state.size}cqmin;--icon-fill:${gradient};`
+}
+
+const exportFontVariants = {
+  solid: { family: '"Font Awesome 7 Free"', weight: '900' },
+  regular: { family: '"Font Awesome 7 Free"', weight: '400' },
+  brands: { family: '"Font Awesome 7 Brands"', weight: '400' },
+}
+
+function parseGlyphToken(token) {
+  const codePointHex = token.replace(/^\\/, '')
+  const codePoint = Number.parseInt(codePointHex, 16)
+  if (Number.isNaN(codePoint)) {
+    return ''
+  }
+
+  return String.fromCodePoint(codePoint)
+}
+
+function getGlyphMap() {
+  const glyphMap = new Map()
+
+  for (const stylesheet of document.styleSheets) {
+    let rules
+    try {
+      rules = stylesheet.cssRules
+    } catch {
+      continue
+    }
+
+    for (const rule of rules) {
+      if (!(rule instanceof CSSStyleRule)) {
+        continue
+      }
+
+      if (!rule.selectorText?.includes('.fa-')) {
+        continue
+      }
+
+      const token = rule.style.getPropertyValue('--fa').trim().replaceAll('"', '').replaceAll("'", '')
+      if (!token) {
+        continue
+      }
+
+      const glyph = parseGlyphToken(token)
+      if (!glyph) {
+        continue
+      }
+
+      const classNames = rule.selectorText.match(/\.fa-[a-z0-9-]+/g) ?? []
+      for (const className of classNames) {
+        glyphMap.set(className.slice(1), glyph)
+      }
+    }
+  }
+
+  return glyphMap
+}
+
+function createIconFill(context, size) {
+  if (state.colors.length === 1) {
+    return state.colors[0]
+  }
+
+  const gradient = context.createLinearGradient(size, 0, 0, size)
+  const colorCount = state.colors.length - 1
+  for (let index = 0; index < state.colors.length; index += 1) {
+    gradient.addColorStop(index / colorCount, state.colors[index])
+  }
+  return gradient
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`Unable to load image: ${url}`))
+    image.src = url
+  })
+}
+
+function drawBackgroundImageCover(context, image, size) {
+  const scale = Math.max(size / image.width, size / image.height)
+  const width = image.width * scale
+  const height = image.height * scale
+  const x = (size - width) * 0.5
+  const y = (size - height) * 0.5
+  context.drawImage(image, x, y, width, height)
+}
+
+function canvasToBlob(canvas, mimeType, quality = 0.92) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error(`Unable to export image: ${mimeType}`))
+          return
+        }
+        resolve(blob)
+      },
+      mimeType,
+      quality,
+    )
+  })
+}
+
+async function exportCanvasAsGif(canvas) {
+  const context = canvas.getContext('2d')
+  const { data } = context.getImageData(0, 0, canvas.width, canvas.height)
+  const palette = quantize(data, 256)
+  const index = applyPalette(data, palette)
+  const gif = GIFEncoder()
+  gif.writeFrame(index, canvas.width, canvas.height, { palette })
+  gif.finish()
+  return new Blob([gif.bytesView()], { type: 'image/gif' })
+}
+
+async function renderIconBlob({ glyph, size, format, backgroundImage }) {
+  const { family, weight } = exportFontVariants[state.style]
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const context = canvas.getContext('2d')
+
+  if (format === 'jpg' && !backgroundImage) {
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, size, size)
+  }
+
+  if (backgroundImage) {
+    drawBackgroundImageCover(context, backgroundImage, size)
+  }
+
+  const iconSize = Math.max(size * (state.size / 100), 1)
+  const x = size * ((50 + state.offsetX * 0.5) / 100)
+  const y = size * ((50 + state.offsetY * 0.5) / 100)
+
+  context.font = `${weight} ${iconSize}px ${family}`
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillStyle = createIconFill(context, size)
+  context.fillText(glyph, x, y)
+
+  if (format === 'gif') {
+    return exportCanvasAsGif(canvas)
+  }
+
+  const mimeTypeByFormat = {
+    jpg: 'image/jpeg',
+    webp: 'image/webp',
+    png: 'image/png',
+  }
+  const mimeType = mimeTypeByFormat[format] ?? 'image/png'
+  return canvasToBlob(canvas, mimeType)
+}
+
+function updateExportButton() {
+  exportButton.disabled = state.isExporting
+  exportButton.textContent = state.isExporting ? 'Exporting…' : 'Download icon pack ZIP'
+}
+
+async function exportIconPack() {
+  if (state.isExporting) {
+    return
+  }
+
+  state.isExporting = true
+  updateExportButton()
+
+  try {
+    const icons = iconSets[state.style]
+    const glyphMap = getGlyphMap()
+    const { family, weight } = exportFontVariants[state.style]
+    const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    await document.fonts.load(`${weight} 100px ${family}`)
+
+    const zip = new JSZip()
+    for (const iconClass of icons) {
+      const glyph = glyphMap.get(iconClass)
+      if (!glyph) {
+        continue
+      }
+
+      const iconBlob = await renderIconBlob({
+        glyph,
+        size: state.exportSize,
+        format: state.exportFormat,
+        backgroundImage,
+      })
+      zip.file(`${iconClass}.${state.exportFormat}`, iconBlob)
+    }
+
+    const archiveBlob = await zip.generateAsync({ type: 'blob' })
+    const archiveUrl = URL.createObjectURL(archiveBlob)
+    const link = document.createElement('a')
+    link.href = archiveUrl
+    link.download = `${state.style}-icon-pack-${state.exportFormat}-${state.exportSize}.zip`
+    link.click()
+    URL.revokeObjectURL(archiveUrl)
+  } catch (error) {
+    console.error(error)
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    alert(`Export failed: ${message}`)
+  } finally {
+    state.isExporting = false
+    updateExportButton()
+  }
 }
 
 function getCardStyle() {
@@ -545,6 +783,20 @@ rerollButton.addEventListener('click', () => {
   renderPreview()
 })
 
+exportFormatSelect.addEventListener('change', (event) => {
+  state.exportFormat = event.target.value
+})
+
+exportSizeSelect.addEventListener('change', (event) => {
+  const value = Number.parseInt(event.target.value, 10)
+  state.exportSize = [128, 256, 512].includes(value) ? value : 512
+})
+
+exportButton.addEventListener('click', () => {
+  exportIconPack()
+})
+
 rerollPreviewIcons()
 renderColorFields()
 renderPreview()
+updateExportButton()
