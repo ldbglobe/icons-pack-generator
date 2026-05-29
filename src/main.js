@@ -196,15 +196,26 @@ const fontClassNames = {
   brands: 'fa-brands',
 }
 
-const defaultColors = ['#000000']
+const defaultColors = ['#ffffff']
 const previewCount = 48
 const previewIndexPoolSize = Math.min(...Object.values(iconSets).map((iconSet) => iconSet.length))
+const transparentTileDarkThreshold = 0.55
+const maxRgbChannelValue = 255
+const transparentTileStyles = {
+  dark: '--transparent-base:#2f2f2f;--transparent-accent:#4a4a4a;',
+  light: '--transparent-base:#d7d7d7;--transparent-accent:#efefef;',
+}
+const rgbBrightnessWeights = {
+  red: 0.299,
+  green: 0.587,
+  blue: 0.114,
+}
 
 const state = {
   backgroundUrl: '',
   style: 'solid',
   offsetX: 0,
-  offsetY: 10,
+  offsetY: 20,
   size: 40,
   colors: [...defaultColors],
   previewIndexes: [],
@@ -245,8 +256,8 @@ app.innerHTML = `
             </div>
             <div class="glyph-field">
               <span>Y</span>
-              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="10" />
-              <input id="offset-y" type="number" min="-100" max="100" step="1" value="10" />
+              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="20" />
+              <input id="offset-y" type="number" min="-100" max="100" step="1" value="20" />
             </div>
             <div class="glyph-field">
               <span>Size</span>
@@ -302,6 +313,56 @@ function clampSize(value) {
   return Math.max(0, Math.min(100, Number(value) || 0))
 }
 
+function parseHexColor(color) {
+  const hex = color.replace('#', '')
+  const fullHex = hex.length === 3
+    ? hex
+      .split('')
+      .map((character) => `${character}${character}`)
+      .join('')
+    : hex
+
+  if (fullHex.length !== 6) {
+    return null
+  }
+
+  return {
+    r: Number.parseInt(fullHex.slice(0, 2), 16),
+    g: Number.parseInt(fullHex.slice(2, 4), 16),
+    b: Number.parseInt(fullHex.slice(4, 6), 16),
+  }
+}
+
+function getAverageGlyphBrightness() {
+  const validColors = state.colors
+    .map((color) => parseHexColor(color))
+    .filter((color) => color !== null)
+
+  if (!validColors.length) {
+    return 0.5
+  }
+
+  const { red, green, blue } = validColors.reduce(
+    (totals, color) => ({
+      red: totals.red + color.r,
+      green: totals.green + color.g,
+      blue: totals.blue + color.b,
+    }),
+    { red: 0, green: 0, blue: 0 },
+  )
+
+  const colorCount = validColors.length
+  const averageRed = red / colorCount
+  const averageGreen = green / colorCount
+  const averageBlue = blue / colorCount
+  const averageBrightness = (
+    rgbBrightnessWeights.red * averageRed
+    + rgbBrightnessWeights.green * averageGreen
+    + rgbBrightnessWeights.blue * averageBlue
+  ) / maxRgbChannelValue
+  return averageBrightness
+}
+
 function getOverlayStyle() {
   const gradient = state.colors.length === 1
     ? state.colors[0]
@@ -316,7 +377,12 @@ function getCardStyle() {
     return `background-image:url('${state.backgroundUrl}');`
   }
 
-  return ''
+  const brightness = getAverageGlyphBrightness()
+  if (brightness >= transparentTileDarkThreshold) {
+    return transparentTileStyles.dark
+  }
+
+  return transparentTileStyles.light
 }
 
 function rerollPreviewIcons() {
