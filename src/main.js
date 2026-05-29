@@ -419,11 +419,11 @@ function updatePreviewStyles() {
   const hasGradient = state.colors.length > 1
   const x = 50 + state.offsetX * 0.5
   const y = 50 + state.offsetY * 0.5
-  const iconSizePercent = Math.max(state.size, 0)
+  const iconSizePixels = Math.max((previewTileSize * state.size) / 100, 0)
 
   previewGrid.style.setProperty('--preview-icon-font-family', family)
   previewGrid.style.setProperty('--preview-icon-font-weight', weight)
-  previewGrid.style.setProperty('--preview-icon-size', `${iconSizePercent}%`)
+  previewGrid.style.setProperty('--preview-icon-size', `${iconSizePixels}px`)
   previewGrid.style.setProperty('--preview-icon-offset-x', `${x}%`)
   previewGrid.style.setProperty('--preview-icon-offset-y', `${y}%`)
   previewGrid.style.setProperty('--preview-icon-color', state.colors[0] ?? '#ffffff')
