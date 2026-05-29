@@ -6,7 +6,91 @@ import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 
 const defaultColors = ['#ffffff']
 
+function createFolderSampleUrl({ bodyTop, bodyBottom, tabTop, tabBottom, highlight }) {
+  const svg = `
+    <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="tab" x1="96" y1="24" x2="96" y2="72" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${tabTop}" />
+          <stop offset="1" stop-color="${tabBottom}" />
+        </linearGradient>
+        <linearGradient id="body" x1="96" y1="48" x2="96" y2="168" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${bodyTop}" />
+          <stop offset="1" stop-color="${bodyBottom}" />
+        </linearGradient>
+        <linearGradient id="shine" x1="96" y1="60" x2="96" y2="112" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${highlight}" stop-opacity="0.34" />
+          <stop offset="1" stop-color="${highlight}" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <path d="M28 56C28 42.7452 38.7452 32 52 32H82.2299C88.5951 32 94.6996 34.5286 99.199 39.0294L112.971 52.8008C115.22 55.0506 118.271 56.3145 121.453 56.3145H140C153.255 56.3145 164 67.0596 164 80.3145V88H28V56Z" fill="url(#tab)"/>
+      <path d="M24 80C24 66.7452 34.7452 56 48 56H144C157.255 56 168 66.7452 168 80V136C168 152.569 154.569 166 138 166H54C37.4315 166 24 152.569 24 136V80Z" fill="url(#body)"/>
+      <path d="M30 86C30 73.8497 39.8497 64 52 64H140C152.15 64 162 73.8497 162 86V100H30V86Z" fill="url(#shine)"/>
+      <path d="M96 42H132.5C136.39 42 140.05 43.8144 142.389 46.906L151.65 59.1475C154.305 62.6579 151.802 67.6667 147.4 67.6667H118.083C114.901 67.6667 111.851 66.4028 109.601 64.1529L89.5147 44.0666C87.9403 42.4922 89.0553 39.8 91.2822 39.8H94.4L96 42Z" fill="${highlight}" fill-opacity="0.92"/>
+    </svg>
+  `
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
+const backgroundSampleGroups = [
+  {
+    label: 'Blue',
+    samples: [
+      { id: 'blue-1', label: 'Blue 1', url: createFolderSampleUrl({ bodyTop: '#68c9ff', bodyBottom: '#2f85eb', tabTop: '#8fe0ff', tabBottom: '#4da8ff', highlight: '#ffffff' }) },
+      { id: 'blue-2', label: 'Blue 2', url: createFolderSampleUrl({ bodyTop: '#74c0fc', bodyBottom: '#1864ab', tabTop: '#a5d8ff', tabBottom: '#4dabf7', highlight: '#f8fbff' }) },
+      { id: 'blue-3', label: 'Blue 3', url: createFolderSampleUrl({ bodyTop: '#8ec5ff', bodyBottom: '#3b5bdb', tabTop: '#c5f6fa', tabBottom: '#74c0fc', highlight: '#ffffff' }) },
+    ],
+  },
+  {
+    label: 'Green',
+    samples: [
+      { id: 'green-1', label: 'Green 1', url: createFolderSampleUrl({ bodyTop: '#7ee787', bodyBottom: '#2da44e', tabTop: '#b7f5bd', tabBottom: '#56d364', highlight: '#f3fff2' }) },
+      { id: 'green-2', label: 'Green 2', url: createFolderSampleUrl({ bodyTop: '#8ce99a', bodyBottom: '#2b8a3e', tabTop: '#d3f9d8', tabBottom: '#69db7c', highlight: '#fbfffd' }) },
+      { id: 'green-3', label: 'Green 3', url: createFolderSampleUrl({ bodyTop: '#63e6be', bodyBottom: '#099268', tabTop: '#c3fae8', tabBottom: '#38d9a9', highlight: '#f5fffb' }) },
+    ],
+  },
+  {
+    label: 'Yellow',
+    samples: [
+      { id: 'yellow-1', label: 'Yellow 1', url: createFolderSampleUrl({ bodyTop: '#ffe066', bodyBottom: '#fab005', tabTop: '#fff3bf', tabBottom: '#ffd43b', highlight: '#fffef2' }) },
+      { id: 'yellow-2', label: 'Yellow 2', url: createFolderSampleUrl({ bodyTop: '#fff089', bodyBottom: '#f59f00', tabTop: '#fff9db', tabBottom: '#fcc419', highlight: '#fffef5' }) },
+      { id: 'yellow-3', label: 'Yellow 3', url: createFolderSampleUrl({ bodyTop: '#ffe8a1', bodyBottom: '#e67700', tabTop: '#fff4cc', tabBottom: '#ffd166', highlight: '#fffdf3' }) },
+    ],
+  },
+  {
+    label: 'Orange',
+    samples: [
+      { id: 'orange-1', label: 'Orange 1', url: createFolderSampleUrl({ bodyTop: '#ffb86c', bodyBottom: '#f76707', tabTop: '#ffd8a8', tabBottom: '#ff922b', highlight: '#fff7f0' }) },
+      { id: 'orange-2', label: 'Orange 2', url: createFolderSampleUrl({ bodyTop: '#ffc078', bodyBottom: '#e8590c', tabTop: '#ffe8cc', tabBottom: '#ff922b', highlight: '#fff7f2' }) },
+      { id: 'orange-3', label: 'Orange 3', url: createFolderSampleUrl({ bodyTop: '#ffa94d', bodyBottom: '#d9480f', tabTop: '#ffd8a8', tabBottom: '#ff922b', highlight: '#fff6ee' }) },
+    ],
+  },
+  {
+    label: 'Red',
+    samples: [
+      { id: 'red-1', label: 'Red 1', url: createFolderSampleUrl({ bodyTop: '#ff8787', bodyBottom: '#e03131', tabTop: '#ffc9c9', tabBottom: '#ff6b6b', highlight: '#fff5f5' }) },
+      { id: 'red-2', label: 'Red 2', url: createFolderSampleUrl({ bodyTop: '#ff9b9b', bodyBottom: '#c92a2a', tabTop: '#ffe3e3', tabBottom: '#ff8787', highlight: '#fff7f7' }) },
+      { id: 'red-3', label: 'Red 3', url: createFolderSampleUrl({ bodyTop: '#ffa8a8', bodyBottom: '#fa5252', tabTop: '#ffe3e3', tabBottom: '#ff8787', highlight: '#fff8f8' }) },
+    ],
+  },
+  {
+    label: 'Purple',
+    samples: [
+      { id: 'purple-1', label: 'Purple 1', url: createFolderSampleUrl({ bodyTop: '#d0bfff', bodyBottom: '#7048e8', tabTop: '#e5dbff', tabBottom: '#9775fa', highlight: '#faf5ff' }) },
+      { id: 'purple-2', label: 'Purple 2', url: createFolderSampleUrl({ bodyTop: '#d8b4fe', bodyBottom: '#9333ea', tabTop: '#f3d9fa', tabBottom: '#c77dff', highlight: '#fdf7ff' }) },
+      { id: 'purple-3', label: 'Purple 3', url: createFolderSampleUrl({ bodyTop: '#e599f7', bodyBottom: '#9c36b5', tabTop: '#f8d9fa', tabBottom: '#cc5de8', highlight: '#fef7ff' }) },
+    ],
+  },
+]
+
+const backgroundSamplesById = new Map(
+  backgroundSampleGroups.flatMap((group) => group.samples.map((sample) => [sample.id, sample])),
+)
+
 const state = {
+  backgroundObjectUrl: '',
+  backgroundSampleId: '',
   backgroundUrl: '',
   backgroundName: '',
   style: 'solid',
@@ -35,10 +119,17 @@ app.innerHTML = `
       </div>
 
       <form class="controls" aria-label="Icon pack controls">
-        <label class="field file-field">
-          <span>Background image</span>
-          <input id="background-input" type="file" accept="image/*" />
-        </label>
+        <fieldset class="background-group">
+          <legend>Background image</legend>
+          <div id="background-samples" class="background-samples" aria-live="polite"></div>
+          <div class="background-actions">
+            <button id="clear-background" type="button" class="secondary-button">No background</button>
+          </div>
+          <label class="field file-field">
+            <span>Custom image (optional)</span>
+            <input id="background-input" type="file" accept="image/*" />
+          </label>
+        </fieldset>
 
         <label class="field">
           <span>Font Awesome style</span>
@@ -121,6 +212,8 @@ app.innerHTML = `
 `
 
 const backgroundInput = document.querySelector('#background-input')
+const backgroundSamples = document.querySelector('#background-samples')
+const clearBackgroundButton = document.querySelector('#clear-background')
 const styleSelect = document.querySelector('#style-select')
 const previewGrid = document.querySelector('#preview-grid')
 const colorFields = document.querySelector('#color-fields')
@@ -294,6 +387,39 @@ function renderPaletteSwatches() {
         .join('')}
     </div>
   `
+}
+
+function renderBackgroundSamples() {
+  backgroundSamples.innerHTML = backgroundSampleGroups
+    .map(
+      (group) => `
+        <section class="background-sample-group" aria-label="${group.label} backgrounds">
+          <p class="background-sample-group-title">${group.label}</p>
+          <div class="background-sample-grid">
+            ${group.samples
+              .map(
+                (sample, index) => `
+                  <button
+                    type="button"
+                    class="background-sample${state.backgroundSampleId === sample.id ? ' is-active' : ''}"
+                    data-background-sample="${sample.id}"
+                    aria-pressed="${state.backgroundSampleId === sample.id}"
+                    aria-label="Use ${sample.label} sample background"
+                    title="${sample.label}"
+                  >
+                    <img class="background-sample-image" src="${sample.url}" alt="" />
+                    <span class="background-sample-badge">${index + 1}</span>
+                  </button>
+                `,
+              )
+              .join('')}
+          </div>
+        </section>
+      `,
+    )
+    .join('')
+
+  clearBackgroundButton.classList.toggle('is-active', !state.backgroundUrl)
 }
 
 function canvasToBlob(canvas, mimeType, quality = 0.92) {
@@ -571,37 +697,83 @@ function syncColor(index, value) {
   renderPreview()
 }
 
+function revokeBackgroundObjectUrl() {
+  if (!state.backgroundObjectUrl) {
+    return
+  }
+
+  URL.revokeObjectURL(state.backgroundObjectUrl)
+  state.backgroundObjectUrl = ''
+}
+
+async function applyBackground({ url, name = '', sampleId = '', isObjectUrl = false }) {
+  revokeBackgroundObjectUrl()
+
+  state.backgroundUrl = url
+  state.backgroundName = name ? toSafeFilenamePart(name) : ''
+  state.backgroundSampleId = sampleId
+  state.backgroundObjectUrl = isObjectUrl ? url : ''
+  state.palette = []
+
+  if (!isObjectUrl) {
+    backgroundInput.value = ''
+  }
+
+  renderBackgroundSamples()
+  renderPaletteSwatches()
+  renderPreview()
+
+  if (!url) {
+    return
+  }
+
+  try {
+    const palette = await extractImagePalette(url)
+    if (state.backgroundUrl === url) {
+      state.palette = palette
+      renderPaletteSwatches()
+    }
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 backgroundInput.addEventListener('change', async (event) => {
   const [file] = event.target.files ?? []
 
   if (!file) {
-    if (state.backgroundUrl) {
-      URL.revokeObjectURL(state.backgroundUrl)
-      state.backgroundUrl = ''
-    }
-    state.backgroundName = ''
-    state.palette = []
-    renderPaletteSwatches()
-    renderPreview()
+    await applyBackground({ url: '' })
     return
   }
 
-  if (state.backgroundUrl) {
-    URL.revokeObjectURL(state.backgroundUrl)
-  }
-
   const url = URL.createObjectURL(file)
-  state.backgroundUrl = url
-  state.backgroundName = toSafeFilenamePart(file.name.replace(/\.[^.]*$/, ''))
-  state.palette = []
-  renderPaletteSwatches()
-  renderPreview()
+  await applyBackground({
+    url,
+    name: file.name.replace(/\.[^.]*$/, ''),
+    isObjectUrl: true,
+  })
+})
 
-  const palette = await extractImagePalette(url)
-  if (state.backgroundUrl === url) {
-    state.palette = palette
-    renderPaletteSwatches()
+backgroundSamples.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-background-sample]')
+  if (!button) {
+    return
   }
+
+  const sample = backgroundSamplesById.get(button.dataset.backgroundSample)
+  if (!sample) {
+    return
+  }
+
+  await applyBackground({
+    url: sample.url,
+    name: sample.id,
+    sampleId: sample.id,
+  })
+})
+
+clearBackgroundButton.addEventListener('click', async () => {
+  await applyBackground({ url: '' })
 })
 
 styleSelect.addEventListener('change', (event) => {
@@ -707,6 +879,7 @@ exportButton.addEventListener('click', () => {
 
 sortPreviewIcons()
 renderColorFields()
+renderBackgroundSamples()
 renderPaletteSwatches()
 renderPreview()
 updateExportButton()

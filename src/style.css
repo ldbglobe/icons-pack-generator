@@ -131,6 +131,39 @@ h2 {
   gap: 1rem;
 }
 
+.background-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.background-samples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.background-sample-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.background-sample-group-title {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.background-sample-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -225,6 +258,12 @@ h2 {
   margin-top: 0.6rem;
 }
 
+.background-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 .export-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -265,6 +304,11 @@ h2 {
   background: rgba(30, 41, 59, 0.85);
 }
 
+.secondary-button.is-active {
+  background: rgba(56, 189, 248, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.48);
+}
+
 .icon-button {
   color: #f8fafc;
   background: rgba(239, 68, 68, 0.18);
@@ -281,6 +325,52 @@ h2 {
   cursor: not-allowed;
   opacity: 0.45;
   transform: none;
+}
+
+.background-sample {
+  position: relative;
+  padding: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.background-sample:hover {
+  transform: translateY(-1px);
+}
+
+.background-sample.is-active {
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow:
+    0 0 0 2px rgba(56, 189, 248, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.background-sample-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.background-sample-badge {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.74);
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .primary-button:disabled,
