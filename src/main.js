@@ -204,8 +204,8 @@ const state = {
   backgroundUrl: '',
   style: 'solid',
   offsetX: 0,
-  offsetY: 0,
-  size: 50,
+  offsetY: 10,
+  size: 40,
   colors: [...defaultColors],
   previewIndexes: [],
 }
@@ -245,13 +245,13 @@ app.innerHTML = `
             </div>
             <div class="glyph-field">
               <span>Y</span>
-              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="0" />
-              <input id="offset-y" type="number" min="-100" max="100" step="1" value="0" />
+              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="10" />
+              <input id="offset-y" type="number" min="-100" max="100" step="1" value="10" />
             </div>
             <div class="glyph-field">
               <span>Size</span>
-              <input id="glyph-size-range" type="range" min="10" max="100" step="1" value="50" />
-              <input id="glyph-size" type="number" min="10" max="100" step="1" value="50" />
+              <input id="glyph-size-range" type="range" min="0" max="100" step="1" value="40" />
+              <input id="glyph-size" type="number" min="0" max="100" step="1" value="40" />
             </div>
           </div>
         </fieldset>
@@ -299,7 +299,7 @@ function clampOffset(value) {
 }
 
 function clampSize(value) {
-  return Math.max(10, Math.min(100, Number(value) || 0))
+  return Math.max(0, Math.min(100, Number(value) || 0))
 }
 
 function getOverlayStyle() {
