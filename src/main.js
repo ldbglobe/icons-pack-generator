@@ -84,9 +84,13 @@ const backgroundSampleGroups = [
   },
 ]
 
-const backgroundSamplesById = new Map(
-  backgroundSampleGroups.flatMap((group) => group.samples.map((sample) => [sample.id, sample])),
-)
+const backgroundSamplesById = new Map()
+
+for (const group of backgroundSampleGroups) {
+  for (const sample of group.samples) {
+    backgroundSamplesById.set(sample.id, sample)
+  }
+}
 
 const state = {
   backgroundObjectUrl: '',
@@ -404,7 +408,7 @@ function renderBackgroundSamples() {
                     class="background-sample${state.backgroundSampleId === sample.id ? ' is-active' : ''}"
                     data-background-sample="${sample.id}"
                     aria-pressed="${state.backgroundSampleId === sample.id}"
-                    aria-label="Use ${sample.label} sample background"
+                    aria-label="Select ${sample.label} background, option ${index + 1} of ${group.samples.length}"
                     title="${sample.label}"
                   >
                     <img class="background-sample-image" src="${sample.url}" alt="" />
@@ -418,6 +422,14 @@ function renderBackgroundSamples() {
       `,
     )
     .join('')
+}
+
+function updateBackgroundSampleSelection() {
+  for (const button of backgroundSamples.querySelectorAll('[data-background-sample]')) {
+    const isActive = button.dataset.backgroundSample === state.backgroundSampleId
+    button.classList.toggle('is-active', isActive)
+    button.setAttribute('aria-pressed', String(isActive))
+  }
 
   clearBackgroundButton.classList.toggle('is-active', !state.backgroundUrl)
 }
@@ -697,29 +709,32 @@ function syncColor(index, value) {
   renderPreview()
 }
 
-function revokeBackgroundObjectUrl() {
-  if (!state.backgroundObjectUrl) {
+function revokeBackgroundObjectUrl(url = state.backgroundObjectUrl) {
+  if (!url) {
     return
   }
 
-  URL.revokeObjectURL(state.backgroundObjectUrl)
-  state.backgroundObjectUrl = ''
+  URL.revokeObjectURL(url)
+  if (state.backgroundObjectUrl === url) {
+    state.backgroundObjectUrl = ''
+  }
 }
 
-async function applyBackground({ url, name = '', sampleId = '', isObjectUrl = false }) {
-  revokeBackgroundObjectUrl()
+async function applyBackground({ url, name = '', sampleId = '', isBlobUrl = false }) {
+  const previousBackgroundObjectUrl = state.backgroundObjectUrl
+  revokeBackgroundObjectUrl(previousBackgroundObjectUrl)
 
   state.backgroundUrl = url
   state.backgroundName = name ? toSafeFilenamePart(name) : ''
   state.backgroundSampleId = sampleId
-  state.backgroundObjectUrl = isObjectUrl ? url : ''
+  state.backgroundObjectUrl = isBlobUrl ? url : ''
   state.palette = []
 
-  if (!isObjectUrl) {
+  if (!isBlobUrl) {
     backgroundInput.value = ''
   }
 
-  renderBackgroundSamples()
+  updateBackgroundSampleSelection()
   renderPaletteSwatches()
   renderPreview()
 
@@ -734,7 +749,7 @@ async function applyBackground({ url, name = '', sampleId = '', isObjectUrl = fa
       renderPaletteSwatches()
     }
   } catch (error) {
-    console.error(error)
+    console.error(`Failed to extract color palette from background image "${name || sampleId || url}":`, error)
   }
 }
 
@@ -750,7 +765,7 @@ backgroundInput.addEventListener('change', async (event) => {
   await applyBackground({
     url,
     name: file.name.replace(/\.[^.]*$/, ''),
-    isObjectUrl: true,
+    isBlobUrl: true,
   })
 })
 
@@ -880,6 +895,7 @@ exportButton.addEventListener('click', () => {
 sortPreviewIcons()
 renderColorFields()
 renderBackgroundSamples()
+updateBackgroundSampleSelection()
 renderPaletteSwatches()
 renderPreview()
 updateExportButton()
