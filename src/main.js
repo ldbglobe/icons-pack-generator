@@ -215,6 +215,7 @@ const rgbBrightnessWeights = {
 
 const state = {
   backgroundUrl: '',
+  backgroundName: '',
   style: 'solid',
   offsetX: 0,
   offsetY: 20,
@@ -460,6 +461,24 @@ function getGlyphMap() {
   return glyphMap
 }
 
+function toSafeFilenamePart(value) {
+  return value
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/^-+|-+$/g, '')
+}
+
+function getExportIconNames(style, glyphMap) {
+  if (!style) {
+    return []
+  }
+
+  return [...glyphMap.keys()]
+    .filter((iconClass) => iconClass.startsWith('fa-'))
+    .map((iconClass) => iconClass.slice(3))
+    .sort((left, right) => left.localeCompare(right))
+}
+
 function createIconFill(context, size) {
   if (state.colors.length === 1) {
     return state.colors[0]
@@ -571,15 +590,16 @@ async function exportIconPack() {
   updateExportButton()
 
   try {
-    const icons = iconSets[state.style]
     const glyphMap = getGlyphMap()
+    const icons = getExportIconNames(state.style, glyphMap)
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    const filenamePrefix = state.backgroundName ? `${toSafeFilenamePart(state.backgroundName)}-` : ''
     await document.fonts.load(`${weight} 100px ${family}`)
 
     const zip = new JSZip()
-    for (const iconClass of icons) {
-      const glyph = glyphMap.get(iconClass)
+    for (const iconName of icons) {
+      const glyph = glyphMap.get(`fa-${iconName}`)
       if (!glyph) {
         continue
       }
@@ -590,7 +610,7 @@ async function exportIconPack() {
         format: state.exportFormat,
         backgroundImage,
       })
-      zip.file(`${iconClass}.${state.exportFormat}`, iconBlob)
+      zip.file(`${filenamePrefix}${iconName}.${state.exportFormat}`, iconBlob)
     }
 
     const archiveBlob = await zip.generateAsync({ type: 'blob' })
@@ -701,6 +721,7 @@ backgroundInput.addEventListener('change', (event) => {
       URL.revokeObjectURL(state.backgroundUrl)
       state.backgroundUrl = ''
     }
+    state.backgroundName = ''
     renderPreview()
     return
   }
@@ -710,6 +731,7 @@ backgroundInput.addEventListener('change', (event) => {
   }
 
   state.backgroundUrl = URL.createObjectURL(file)
+  state.backgroundName = file.name.replace(/\.[^.]*$/, '')
   renderPreview()
 })
 
