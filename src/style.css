@@ -225,6 +225,17 @@ h2 {
   margin-top: 0.6rem;
 }
 
+.export-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.export-button {
+  width: 100%;
+}
+
 .primary-button,
 .secondary-button,
 .icon-button {
@@ -269,6 +280,13 @@ h2 {
 .icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+  transform: none;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
   transform: none;
 }
 
