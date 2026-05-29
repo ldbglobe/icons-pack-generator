@@ -14,6 +14,7 @@ const state = {
   offsetY: 20,
   size: 40,
   colors: [...defaultColors],
+  palette: [],
   exportFormat: 'png',
   exportSize: 512,
   isExporting: false,
@@ -77,6 +78,7 @@ app.innerHTML = `
             <button id="reset-colors" type="button" class="secondary-button">Reset</button>
           </div>
           <p class="hint">Multiple colors render as a gradient. Up to four colors.</p>
+          <div id="palette-swatches" class="palette-swatches" aria-live="polite"></div>
         </fieldset>
 
         <fieldset class="export-group">
@@ -122,6 +124,7 @@ const backgroundInput = document.querySelector('#background-input')
 const styleSelect = document.querySelector('#style-select')
 const previewGrid = document.querySelector('#preview-grid')
 const colorFields = document.querySelector('#color-fields')
+const paletteSwatches = document.querySelector('#palette-swatches')
 const addColorButton = document.querySelector('#add-color')
 const resetColorsButton = document.querySelector('#reset-colors')
 const sortButton = document.querySelector('#sort-button')
@@ -249,6 +252,48 @@ function drawBackgroundImageCover(context, image, size) {
   const x = (size - width) * 0.5
   const y = (size - height) * 0.5
   context.drawImage(image, x, y, width, height)
+}
+
+async function extractImagePalette(imageUrl) {
+  const image = await loadImage(imageUrl)
+  const sampleSize = 64
+  const canvas = document.createElement('canvas')
+  canvas.width = sampleSize
+  canvas.height = sampleSize
+  const context = canvas.getContext('2d')
+  drawBackgroundImageCover(context, image, sampleSize)
+  const { data } = context.getImageData(0, 0, sampleSize, sampleSize)
+  const rawPalette = quantize(data, 16)
+  return rawPalette.map(([r, g, b]) => {
+    const toHex = (n) => n.toString(16).padStart(2, '0')
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  })
+}
+
+function renderPaletteSwatches() {
+  if (state.palette.length === 0) {
+    paletteSwatches.innerHTML = ''
+    return
+  }
+  paletteSwatches.innerHTML = `
+    <p class="hint">Background palette — click to apply color</p>
+    <div class="palette-grid">
+      ${state.palette
+        .map(
+          (color) => `
+        <button
+          type="button"
+          class="palette-swatch"
+          data-palette-color="${color}"
+          style="background-color: ${color}"
+          title="${color}"
+          aria-label="Apply palette color ${color}"
+        ></button>
+      `,
+        )
+        .join('')}
+    </div>
+  `
 }
 
 function canvasToBlob(canvas, mimeType, quality = 0.92) {
@@ -526,7 +571,7 @@ function syncColor(index, value) {
   renderPreview()
 }
 
-backgroundInput.addEventListener('change', (event) => {
+backgroundInput.addEventListener('change', async (event) => {
   const [file] = event.target.files ?? []
 
   if (!file) {
@@ -535,6 +580,8 @@ backgroundInput.addEventListener('change', (event) => {
       state.backgroundUrl = ''
     }
     state.backgroundName = ''
+    state.palette = []
+    renderPaletteSwatches()
     renderPreview()
     return
   }
@@ -543,9 +590,18 @@ backgroundInput.addEventListener('change', (event) => {
     URL.revokeObjectURL(state.backgroundUrl)
   }
 
-  state.backgroundUrl = URL.createObjectURL(file)
+  const url = URL.createObjectURL(file)
+  state.backgroundUrl = url
   state.backgroundName = toSafeFilenamePart(file.name.replace(/\.[^.]*$/, ''))
+  state.palette = []
+  renderPaletteSwatches()
   renderPreview()
+
+  const palette = await extractImagePalette(url)
+  if (state.backgroundUrl === url) {
+    state.palette = palette
+    renderPaletteSwatches()
+  }
 })
 
 styleSelect.addEventListener('change', (event) => {
@@ -614,6 +670,17 @@ resetColorsButton.addEventListener('click', () => {
   renderPreview()
 })
 
+paletteSwatches.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-palette-color]')
+  if (!button) {
+    return
+  }
+  const color = button.dataset.paletteColor
+  state.colors = [color]
+  renderColorFields()
+  renderPreview()
+})
+
 sortButton.addEventListener('click', () => {
   state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc'
   sortButton.textContent = state.sortOrder === 'asc' ? 'A → Z' : 'Z → A'
@@ -640,5 +707,6 @@ exportButton.addEventListener('click', () => {
 
 sortPreviewIcons()
 renderColorFields()
+renderPaletteSwatches()
 renderPreview()
 updateExportButton()
