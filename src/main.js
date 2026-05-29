@@ -396,6 +396,7 @@ function sortPreviewIcons() {
 }
 
 const previewTileSize = 64
+const previewGridColumns = 6
 let cachedGlyphMap = null
 let previewRenderVersion = 0
 let previewStructureKey = ''
@@ -413,13 +414,23 @@ function getPreviewGradient() {
   return `linear-gradient(135deg, ${stops.join(', ')})`
 }
 
+function getPreviewTileSize() {
+  const styles = getComputedStyle(previewGrid)
+  const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0
+  const availableWidth = previewGrid.clientWidth - gap * (previewGridColumns - 1)
+  if (availableWidth <= 0) {
+    return previewTileSize
+  }
+  return availableWidth / previewGridColumns
+}
+
 function updatePreviewStyles() {
   const { family, weight } = exportFontVariants[state.style]
   const hasBackground = Boolean(state.backgroundUrl)
   const hasGradient = state.colors.length > 1
   const x = 50 + state.offsetX * 0.5
   const y = 50 + state.offsetY * 0.5
-  const iconSizePixels = Math.max((previewTileSize * state.size) / 100, 0)
+  const iconSizePixels = Math.max((getPreviewTileSize() * state.size) / 100, 0)
 
   previewGrid.style.setProperty('--preview-icon-font-family', family)
   previewGrid.style.setProperty('--preview-icon-font-weight', weight)
@@ -608,6 +619,10 @@ sortButton.addEventListener('click', () => {
   sortButton.textContent = state.sortOrder === 'asc' ? 'A → Z' : 'Z → A'
   sortPreviewIcons()
   renderPreview()
+})
+
+window.addEventListener('resize', () => {
+  updatePreviewStyles()
 })
 
 exportFormatSelect.addEventListener('change', (event) => {
