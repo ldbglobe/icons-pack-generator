@@ -196,7 +196,7 @@ const fontClassNames = {
   brands: 'fa-brands',
 }
 
-const defaultColors = ['#000000']
+const defaultColors = ['#ffffff']
 const previewCount = 48
 const previewIndexPoolSize = Math.min(...Object.values(iconSets).map((iconSet) => iconSet.length))
 
@@ -204,7 +204,7 @@ const state = {
   backgroundUrl: '',
   style: 'solid',
   offsetX: 0,
-  offsetY: 10,
+  offsetY: 20,
   size: 40,
   colors: [...defaultColors],
   previewIndexes: [],
@@ -245,8 +245,8 @@ app.innerHTML = `
             </div>
             <div class="glyph-field">
               <span>Y</span>
-              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="10" />
-              <input id="offset-y" type="number" min="-100" max="100" step="1" value="10" />
+              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="20" />
+              <input id="offset-y" type="number" min="-100" max="100" step="1" value="20" />
             </div>
             <div class="glyph-field">
               <span>Size</span>
@@ -302,6 +302,42 @@ function clampSize(value) {
   return Math.max(0, Math.min(100, Number(value) || 0))
 }
 
+function parseHexColor(color) {
+  const hex = color.replace('#', '')
+  if (hex.length !== 6) {
+    return null
+  }
+
+  return {
+    r: Number.parseInt(hex.slice(0, 2), 16),
+    g: Number.parseInt(hex.slice(2, 4), 16),
+    b: Number.parseInt(hex.slice(4, 6), 16),
+  }
+}
+
+function getAverageGlyphBrightness() {
+  const validColors = state.colors
+    .map((color) => parseHexColor(color))
+    .filter((color) => color !== null)
+
+  if (!validColors.length) {
+    return 1
+  }
+
+  const { red, green, blue } = validColors.reduce(
+    (totals, color) => ({
+      red: totals.red + color.r,
+      green: totals.green + color.g,
+      blue: totals.blue + color.b,
+    }),
+    { red: 0, green: 0, blue: 0 },
+  )
+
+  const colorCount = validColors.length
+  const averageBrightness = (0.299 * (red / colorCount) + 0.587 * (green / colorCount) + 0.114 * (blue / colorCount)) / 255
+  return averageBrightness
+}
+
 function getOverlayStyle() {
   const gradient = state.colors.length === 1
     ? state.colors[0]
@@ -316,7 +352,12 @@ function getCardStyle() {
     return `background-image:url('${state.backgroundUrl}');`
   }
 
-  return ''
+  const brightness = getAverageGlyphBrightness()
+  if (brightness >= 0.55) {
+    return '--transparent-base:#2f2f2f;--transparent-accent:#4a4a4a;'
+  }
+
+  return '--transparent-base:#d7d7d7;--transparent-accent:#efefef;'
 }
 
 function rerollPreviewIcons() {
