@@ -306,10 +306,8 @@ function getOverlayStyle() {
   const gradient = state.colors.length === 1
     ? state.colors[0]
     : `linear-gradient(135deg, ${state.colors.join(', ')})`
-
   const left = 50 + state.offsetX * 0.5
   const top = 50 + state.offsetY * 0.5
-
   return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${state.size}cqmin;--icon-fill:${gradient};`
 }
 
