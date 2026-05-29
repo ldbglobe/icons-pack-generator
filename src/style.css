@@ -377,3 +377,31 @@ h2 {
   text-align: center;
   word-break: break-word;
 }
+
+.palette-swatches {
+  margin-top: 0.75rem;
+}
+
+.palette-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.palette-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
+}
+
+.palette-swatch:hover {
+  transform: scale(1.2);
+  border-color: rgba(255, 255, 255, 0.7);
+}
