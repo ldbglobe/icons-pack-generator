@@ -199,8 +199,7 @@ const fontClassNames = {
 }
 
 const defaultColors = ['#ffffff']
-const previewCount = 48
-const previewIndexPoolSize = Math.min(...Object.values(iconSets).map((iconSet) => iconSet.length))
+const previewGridRowCount = 6
 const transparentTileDarkThreshold = 0.55
 const maxRgbChannelValue = 255
 const transparentTileStyles = {
@@ -224,7 +223,7 @@ const state = {
   exportFormat: 'png',
   exportSize: 512,
   isExporting: false,
-  previewIndexes: [],
+  previewIcons: [],
 }
 
 const app = document.querySelector('#app')
@@ -313,7 +312,7 @@ app.innerHTML = `
       <div class="preview-header">
         <div>
           <p class="eyebrow">Preview</p>
-          <h2>6×8 icon grid</h2>
+          <h2>6-row glyph grid</h2>
         </div>
         <button id="reroll-button" type="button" class="primary-button">Shuffle</button>
       </div>
@@ -468,8 +467,8 @@ function toSafeFilenamePart(value) {
     .replace(/^-+|-+$/g, '')
 }
 
-function getExportIconNames(glyphMap) {
-  return [...glyphMap.keys()]
+function getExportIconNames() {
+  return iconSets[state.style]
     .filter((iconClass) => iconClass.startsWith('fa-'))
     .map((iconClass) => iconClass.slice(3))
     .sort((left, right) => left.localeCompare(right))
@@ -587,7 +586,7 @@ async function exportIconPack() {
 
   try {
     const glyphMap = getGlyphMap()
-    const icons = getExportIconNames(glyphMap)
+    const icons = getExportIconNames()
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
     const filenamePrefix = state.backgroundName ? `${state.backgroundName}-` : ''
@@ -640,39 +639,50 @@ function getCardStyle() {
 }
 
 function rerollPreviewIcons() {
-  const indexes = Array.from({ length: previewIndexPoolSize }, (_, index) => index)
+  const icons = [...iconSets[state.style]]
 
-  for (let index = indexes.length - 1; index > 0; index -= 1) {
+  for (let index = icons.length - 1; index > 0; index -= 1) {
     const randomIndex = Math.floor(Math.random() * (index + 1))
-    const temporaryIndex = indexes[index]
-    indexes[index] = indexes[randomIndex]
-    indexes[randomIndex] = temporaryIndex
+    const temporaryIndex = icons[index]
+    icons[index] = icons[randomIndex]
+    icons[randomIndex] = temporaryIndex
   }
 
-  state.previewIndexes = indexes.slice(0, previewCount)
+  state.previewIcons = icons
 }
 
 function renderPreview() {
   const fontClassName = fontClassNames[state.style]
-  const icons = iconSets[state.style]
+  const totalIcons = state.previewIcons.length
+  const columnCount = Math.max(1, Math.ceil(totalIcons / previewGridRowCount))
+  previewGrid.style.setProperty('--preview-columns', String(columnCount))
   const fragment = document.createDocumentFragment()
 
-  for (let index = 0; index < previewCount; index += 1) {
+  for (let index = 0; index < totalIcons; index += 1) {
+    const iconClassName = state.previewIcons[index]
     const card = document.createElement('article')
-    card.className = `preview-card${state.backgroundUrl ? '' : ' preview-card--transparent'}`
+    card.className = 'preview-card'
     card.setAttribute('aria-label', `Preview tile ${index + 1}`)
-    card.style.cssText = getCardStyle()
+
+    const tile = document.createElement('div')
+    tile.className = `preview-tile${state.backgroundUrl ? '' : ' preview-tile--transparent'}`
+    tile.style.cssText = getCardStyle()
 
     const overlay = document.createElement('div')
     overlay.className = 'icon-overlay'
     overlay.style.cssText = getOverlayStyle()
 
     const icon = document.createElement('i')
-    icon.className = `${fontClassName} ${icons[state.previewIndexes[index] % icons.length]} preview-icon`
+    icon.className = `${fontClassName} ${iconClassName} preview-icon`
     icon.setAttribute('aria-hidden', 'true')
 
+    const name = document.createElement('p')
+    name.className = 'preview-name'
+    name.textContent = iconClassName
+
     overlay.append(icon)
-    card.append(overlay)
+    tile.append(overlay)
+    card.append(tile, name)
     fragment.append(card)
   }
 
@@ -733,6 +743,7 @@ backgroundInput.addEventListener('change', (event) => {
 
 styleSelect.addEventListener('change', (event) => {
   state.style = event.target.value
+  state.previewIcons = [...iconSets[state.style]]
   renderPreview()
 })
 
