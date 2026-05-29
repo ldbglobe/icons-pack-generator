@@ -468,7 +468,10 @@ function toSafeFilenamePart(value) {
 }
 
 function getExportIconNames() {
-  return iconSets[state.style].map((iconClass) => iconClass.slice(3))
+  return iconSets[state.style]
+    .filter((iconClass) => iconClass.startsWith('fa-'))
+    .map((iconClass) => iconClass.slice(3))
+    .sort((left, right) => left.localeCompare(right))
 }
 
 function createIconFill(context, size) {
@@ -651,7 +654,7 @@ function rerollPreviewIcons() {
 function renderPreview() {
   const fontClassName = fontClassNames[state.style]
   const totalIcons = state.previewIcons.length
-  const columnCount = Math.ceil(totalIcons / previewGridRowCount) || 1
+  const columnCount = Math.max(1, Math.ceil(totalIcons / previewGridRowCount))
   previewGrid.style.setProperty('--preview-columns', String(columnCount))
   const fragment = document.createDocumentFragment()
 
@@ -740,7 +743,7 @@ backgroundInput.addEventListener('change', (event) => {
 
 styleSelect.addEventListener('change', (event) => {
   state.style = event.target.value
-  rerollPreviewIcons()
+  state.previewIcons = [...iconSets[state.style]]
   renderPreview()
 })
 
