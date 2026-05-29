@@ -297,6 +297,21 @@ h2 {
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.28));
 }
 
+.preview-card--transparent {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #cccccc 25%, transparent 25%),
+    linear-gradient(-45deg, #cccccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #cccccc 75%),
+    linear-gradient(-45deg, transparent 75%, #cccccc 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+}
+
+.preview-card--transparent::after {
+  display: none;
+}
+
 .icon-overlay {
   position: absolute;
   inset: 0;

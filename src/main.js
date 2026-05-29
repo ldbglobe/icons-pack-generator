@@ -196,7 +196,7 @@ const fontClassNames = {
   brands: 'fa-brands',
 }
 
-const defaultColors = ['#ffffff', '#22c55e']
+const defaultColors = ['#ffffff']
 const previewCount = 48
 const previewIndexPoolSize = Math.min(...Object.values(iconSets).map((iconSet) => iconSet.length))
 
@@ -205,8 +205,8 @@ const state = {
   style: 'solid',
   offsetX: 0,
   offsetY: 0,
-  size: 80,
-  borderRadius: 4,
+  size: 50,
+  borderRadius: 0,
   borderSize: 0,
   borderColor: '#ffffff',
   colors: [...defaultColors],
@@ -253,8 +253,8 @@ app.innerHTML = `
             </div>
             <div class="glyph-field">
               <span>Size</span>
-              <input id="glyph-size-range" type="range" min="10" max="100" step="1" value="80" />
-              <input id="glyph-size" type="number" min="10" max="100" step="1" value="80" />
+              <input id="glyph-size-range" type="range" min="10" max="100" step="1" value="50" />
+              <input id="glyph-size" type="number" min="10" max="100" step="1" value="50" />
             </div>
           </div>
         </fieldset>
@@ -264,8 +264,8 @@ app.innerHTML = `
           <div class="glyph-fields">
             <div class="glyph-field">
               <span>Radius</span>
-              <input id="border-radius-range" type="range" min="0" max="100" step="1" value="4" />
-              <input id="border-radius" type="number" min="0" max="100" step="1" value="4" />
+              <input id="border-radius-range" type="range" min="0" max="100" step="1" value="0" />
+              <input id="border-radius" type="number" min="0" max="100" step="1" value="0" />
             </div>
             <div class="glyph-field">
               <span>Size</span>
@@ -343,8 +343,9 @@ function getOverlayStyle() {
 
   const left = 50 + state.offsetX * 0.5
   const top = 50 + state.offsetY * 0.5
+  const effectiveSize = state.size * (100 - 2 * state.borderSize) / 100
 
-  return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${state.size}cqmin;--icon-fill:${gradient};`
+  return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${effectiveSize}cqmin;--icon-fill:${gradient};`
 }
 
 function getCardStyle() {
@@ -354,7 +355,7 @@ function getCardStyle() {
     return `${borderStyle}background-image:url('${state.backgroundUrl}');`
   }
 
-  return `${borderStyle}background-image:linear-gradient(135deg, #0f172a, #1d4ed8 50%, #38bdf8);`
+  return borderStyle
 }
 
 function rerollPreviewIcons() {
@@ -377,7 +378,7 @@ function renderPreview() {
 
   for (let index = 0; index < previewCount; index += 1) {
     const card = document.createElement('article')
-    card.className = 'preview-card'
+    card.className = `preview-card${state.backgroundUrl ? '' : ' preview-card--transparent'}`
     card.setAttribute('aria-label', `Preview tile ${index + 1}`)
     card.style.cssText = getCardStyle()
 
