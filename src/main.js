@@ -289,7 +289,7 @@ app.innerHTML = `
               <span>Format</span>
               <select id="export-format">
                 <option value="png" selected>PNG (default)</option>
-                <option value="jpg">JPG (non transparent)</option>
+                <option value="jpg">JPG (non-transparent)</option>
                 <option value="gif">GIF</option>
                 <option value="webp">WEBP</option>
               </select>
@@ -477,12 +477,12 @@ function loadImage(url) {
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Unable to load image'))
+    image.onerror = () => reject(new Error(`Unable to load image: ${url}`))
     image.src = url
   })
 }
 
-function drawCoverImage(context, image, size) {
+function drawBackgroundImageCover(context, image, size) {
   const scale = Math.max(size / image.width, size / image.height)
   const width = image.width * scale
   const height = image.height * scale
@@ -496,7 +496,7 @@ function canvasToBlob(canvas, mimeType, quality = 0.92) {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error('Unable to export image'))
+          reject(new Error(`Unable to export image: ${mimeType}`))
           return
         }
         resolve(blob)
@@ -531,7 +531,7 @@ async function renderIconBlob({ glyph, size, format, backgroundImage }) {
   }
 
   if (backgroundImage) {
-    drawCoverImage(context, backgroundImage, size)
+    drawBackgroundImageCover(context, backgroundImage, size)
   }
 
   const iconSize = Math.max(size * (state.size / 100), 1)
@@ -548,11 +548,12 @@ async function renderIconBlob({ glyph, size, format, backgroundImage }) {
     return exportCanvasAsGif(canvas)
   }
 
-  const mimeType = format === 'jpg'
-    ? 'image/jpeg'
-    : format === 'webp'
-      ? 'image/webp'
-      : 'image/png'
+  const mimeTypeByFormat = {
+    jpg: 'image/jpeg',
+    webp: 'image/webp',
+    png: 'image/png',
+  }
+  const mimeType = mimeTypeByFormat[format] ?? 'image/png'
   return canvasToBlob(canvas, mimeType)
 }
 
@@ -574,7 +575,7 @@ async function exportIconPack() {
     const glyphMap = getGlyphMap()
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
-    await document.fonts.load(`${weight} ${state.exportSize}px ${family}`)
+    await document.fonts.load(`${weight} 100px ${family}`)
 
     const zip = new JSZip()
     for (const iconClass of icons) {
@@ -596,11 +597,13 @@ async function exportIconPack() {
     const archiveUrl = URL.createObjectURL(archiveBlob)
     const link = document.createElement('a')
     link.href = archiveUrl
-    link.download = `${state.style}-icon-pack-${state.exportSize}.${state.exportFormat}.zip`
+    link.download = `${state.style}-icon-pack-${state.exportFormat}-${state.exportSize}.zip`
     link.click()
     URL.revokeObjectURL(archiveUrl)
   } catch (error) {
     console.error(error)
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    alert(`Export failed: ${message}`)
   } finally {
     state.isExporting = false
     updateExportButton()
