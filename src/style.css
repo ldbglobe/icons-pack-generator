@@ -304,12 +304,9 @@ h2 {
 }
 
 .preview-tile {
-  container-type: size;
   position: relative;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  background-size: cover;
-  background-position: center;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
@@ -318,6 +315,7 @@ h2 {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0.28));
+  pointer-events: none;
 }
 
 .preview-tile--transparent {
@@ -335,6 +333,13 @@ h2 {
   display: none;
 }
 
+.preview-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .preview-name {
   margin: 0;
   color: #bfd2ff;
@@ -342,27 +347,4 @@ h2 {
   line-height: 1.15;
   text-align: center;
   word-break: break-word;
-}
-
-.icon-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-
-.preview-icon {
-  position: absolute;
-  left: var(--icon-left, 50%);
-  top: var(--icon-top, 50%);
-  transform: translate(-50%, -50%);
-  font-size: var(--icon-size, 80cqmin);
-  width: 1em;
-  height: 1em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: transparent;
-  background: var(--icon-fill);
-  -webkit-background-clip: text;
-  background-clip: text;
 }

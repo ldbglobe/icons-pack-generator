@@ -4,24 +4,7 @@ import iconSets from './icon-sets.json'
 import JSZip from 'jszip'
 import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 
-const fontClassNames = {
-  solid: 'fa-solid',
-  regular: 'fa-regular',
-  brands: 'fa-brands',
-}
-
 const defaultColors = ['#ffffff']
-const transparentTileDarkThreshold = 0.55
-const maxRgbChannelValue = 255
-const transparentTileStyles = {
-  dark: '--transparent-base:#2f2f2f;--transparent-accent:#4a4a4a;',
-  light: '--transparent-base:#d7d7d7;--transparent-accent:#efefef;',
-}
-const rgbBrightnessWeights = {
-  red: 0.299,
-  green: 0.587,
-  blue: 0.114,
-}
 
 const state = {
   backgroundUrl: '',
@@ -157,65 +140,6 @@ function clampSize(value) {
   return Math.max(0, Math.min(100, Number(value) || 0))
 }
 
-function parseHexColor(color) {
-  const hex = color.replace('#', '')
-  const fullHex = hex.length === 3
-    ? hex
-      .split('')
-      .map((character) => `${character}${character}`)
-      .join('')
-    : hex
-
-  if (fullHex.length !== 6) {
-    return null
-  }
-
-  return {
-    r: Number.parseInt(fullHex.slice(0, 2), 16),
-    g: Number.parseInt(fullHex.slice(2, 4), 16),
-    b: Number.parseInt(fullHex.slice(4, 6), 16),
-  }
-}
-
-function getAverageGlyphBrightness() {
-  const validColors = state.colors
-    .map((color) => parseHexColor(color))
-    .filter((color) => color !== null)
-
-  if (!validColors.length) {
-    return 0.5
-  }
-
-  const { red, green, blue } = validColors.reduce(
-    (totals, color) => ({
-      red: totals.red + color.r,
-      green: totals.green + color.g,
-      blue: totals.blue + color.b,
-    }),
-    { red: 0, green: 0, blue: 0 },
-  )
-
-  const colorCount = validColors.length
-  const averageRed = red / colorCount
-  const averageGreen = green / colorCount
-  const averageBlue = blue / colorCount
-  const averageBrightness = (
-    rgbBrightnessWeights.red * averageRed
-    + rgbBrightnessWeights.green * averageGreen
-    + rgbBrightnessWeights.blue * averageBlue
-  ) / maxRgbChannelValue
-  return averageBrightness
-}
-
-function getOverlayStyle() {
-  const gradient = state.colors.length === 1
-    ? state.colors[0]
-    : `linear-gradient(135deg, ${state.colors.join(', ')})`
-  const left = 50 + state.offsetX * 0.5
-  const top = 50 + state.offsetY * 0.5
-  return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${state.size}cqmin;--icon-fill:${gradient};`
-}
-
 const exportFontVariants = {
   solid: { family: '"Font Awesome 7 Free"', weight: '900' },
   regular: { family: '"Font Awesome 7 Free"', weight: '400' },
@@ -223,12 +147,16 @@ const exportFontVariants = {
 }
 
 function parseGlyphToken(token) {
-  const codePointHex = token.replace(/^\\/, '')
-  const codePoint = Number.parseInt(codePointHex, 16)
-  if (Number.isNaN(codePoint)) {
-    return ''
+  if (!token.startsWith('\\')) {
+    // Literal character value (e.g., "A", "B", "!", etc.)
+    return token
   }
-
+  const rest = token.slice(1)
+  const codePoint = Number.parseInt(rest, 16)
+  if (Number.isNaN(codePoint)) {
+    // Escaped non-hex character (e.g., \! → !)
+    return rest.slice(0, 1)
+  }
   return String.fromCodePoint(codePoint)
 }
 
@@ -437,19 +365,6 @@ async function exportIconPack() {
   }
 }
 
-function getCardStyle() {
-  if (state.backgroundUrl) {
-    return `background-image:url('${state.backgroundUrl}');`
-  }
-
-  const brightness = getAverageGlyphBrightness()
-  if (brightness >= transparentTileDarkThreshold) {
-    return transparentTileStyles.dark
-  }
-
-  return transparentTileStyles.light
-}
-
 function sortPreviewIcons() {
   const icons = [...iconSets[state.style]]
   if (state.sortOrder === 'asc') {
@@ -460,35 +375,73 @@ function sortPreviewIcons() {
   state.previewIcons = icons
 }
 
-function renderPreview() {
-  const fontClassName = fontClassNames[state.style]
+const previewTileSize = 64
+let cachedGlyphMap = null
+let cachedPreviewBackground = null
+let cachedPreviewBackgroundUrl = null
+let previewRenderVersion = 0
+
+async function renderPreview() {
+  const version = ++previewRenderVersion
+  const { family, weight } = exportFontVariants[state.style]
+
+  await document.fonts.load(`${weight} ${previewTileSize}px ${family}`)
+  if (version !== previewRenderVersion) return
+
+  if (!cachedGlyphMap) {
+    cachedGlyphMap = getGlyphMap()
+  }
+
+  if (state.backgroundUrl !== cachedPreviewBackgroundUrl) {
+    cachedPreviewBackground = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    cachedPreviewBackgroundUrl = state.backgroundUrl
+  }
+  if (version !== previewRenderVersion) return
+
+  const glyphMap = cachedGlyphMap
+  const backgroundImage = cachedPreviewBackground
   const totalIcons = state.previewIcons.length
   const fragment = document.createDocumentFragment()
 
   for (let index = 0; index < totalIcons; index += 1) {
     const iconClassName = state.previewIcons[index]
+    const iconName = iconClassName.startsWith('fa-') ? iconClassName.slice(3) : iconClassName
+
     const card = document.createElement('article')
     card.className = 'preview-card'
     card.setAttribute('aria-label', `Preview tile ${index + 1}`)
 
     const tile = document.createElement('div')
     tile.className = `preview-tile${state.backgroundUrl ? '' : ' preview-tile--transparent'}`
-    tile.style.cssText = getCardStyle()
 
-    const overlay = document.createElement('div')
-    overlay.className = 'icon-overlay'
-    overlay.style.cssText = getOverlayStyle()
+    const canvas = document.createElement('canvas')
+    canvas.width = previewTileSize
+    canvas.height = previewTileSize
+    canvas.className = 'preview-canvas'
 
-    const icon = document.createElement('i')
-    icon.className = `${fontClassName} ${iconClassName} preview-icon`
-    icon.setAttribute('aria-hidden', 'true')
+    const context = canvas.getContext('2d')
+
+    if (backgroundImage) {
+      drawBackgroundImageCover(context, backgroundImage, previewTileSize)
+    }
+
+    const glyph = glyphMap.get(iconClassName)
+    if (glyph) {
+      const iconSize = Math.max(previewTileSize * (state.size / 100), 1)
+      const x = previewTileSize * ((50 + state.offsetX * 0.5) / 100)
+      const y = previewTileSize * ((50 + state.offsetY * 0.5) / 100)
+      context.font = `${weight} ${iconSize}px ${family}`
+      context.textAlign = 'center'
+      context.textBaseline = 'middle'
+      context.fillStyle = createIconFill(context, previewTileSize)
+      context.fillText(glyph, x, y)
+    }
 
     const name = document.createElement('p')
     name.className = 'preview-name'
-    name.textContent = iconClassName
+    name.textContent = iconName
 
-    overlay.append(icon)
-    tile.append(overlay)
+    tile.append(canvas)
     card.append(tile, name)
     fragment.append(card)
   }
