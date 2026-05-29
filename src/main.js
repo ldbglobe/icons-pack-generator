@@ -17,12 +17,15 @@ const state = {
   palette: [],
   exportFormat: 'png',
   exportSize: 512,
+  exportVersion: '1.0.0',
   isExporting: false,
   exportProcessedCount: 0,
   exportTotalCount: 0,
   previewIcons: [],
   sortOrder: 'asc',
 }
+
+const androidIconPackPackageName = 'cn.ldglobe.dev.icons'
 
 const app = document.querySelector('#app')
 
@@ -91,6 +94,7 @@ app.innerHTML = `
                 <option value="jpg">JPG (non-transparent)</option>
                 <option value="gif">GIF</option>
                 <option value="webp">WEBP</option>
+                <option value="android">Android Icon Pack (Blueprint style)</option>
               </select>
             </label>
             <label class="field">
@@ -100,6 +104,10 @@ app.innerHTML = `
                 <option value="256">256</option>
                 <option value="512" selected>512 (default)</option>
               </select>
+            </label>
+            <label class="field">
+              <span>Version</span>
+              <input id="export-version" type="text" value="1.0.0" autocomplete="off" />
             </label>
           </div>
           <button id="export-button" type="button" class="primary-button export-button">Download icon pack ZIP</button>
@@ -130,6 +138,7 @@ const resetColorsButton = document.querySelector('#reset-colors')
 const sortButton = document.querySelector('#sort-button')
 const exportFormatSelect = document.querySelector('#export-format')
 const exportSizeSelect = document.querySelector('#export-size')
+const exportVersionInput = document.querySelector('#export-version')
 const exportButton = document.querySelector('#export-button')
 const glyphInputs = {
   offsetX: { range: document.querySelector('#offset-x-range'), number: document.querySelector('#offset-x') },
@@ -214,6 +223,34 @@ function toSafeFilenamePart(value) {
 
 function stripFaPrefix(iconClass) {
   return iconClass.startsWith('fa-') ? iconClass.slice(3) : iconClass
+}
+
+function toSafeZipFilename(value) {
+  const safeName = toSafeFilenamePart(value)
+  return safeName || 'icon-pack'
+}
+
+function toAndroidResourceName(value) {
+  const base = value
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  if (!base) {
+    return 'ic_icon'
+  }
+  if (/^[0-9]/.test(base)) {
+    return `ic_${base}`
+  }
+  return base.startsWith('ic_') ? base : `ic_${base}`
+}
+
+function escapeXml(value) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
 }
 
 function getExportIconNames() {
@@ -365,13 +402,128 @@ async function renderIconBlob({ glyph, size, format, backgroundImage }) {
 function updateExportButton() {
   exportButton.disabled = state.isExporting
   if (!state.isExporting) {
-    exportButton.textContent = 'Download icon pack ZIP'
+    exportButton.textContent =
+      state.exportFormat === 'android' ? 'Download Android icon pack ZIP' : 'Download icon pack ZIP'
     return
   }
 
   const total = state.exportTotalCount
   const processed = state.exportProcessedCount
   exportButton.textContent = total > 0 ? `Exporting… ${processed}/${total}` : 'Exporting…'
+}
+
+function getUniqueDrawableName(iconName, usedNames) {
+  const baseName = toAndroidResourceName(iconName)
+  let candidate = baseName
+  let suffix = 2
+  while (usedNames.has(candidate)) {
+    candidate = `${baseName}_${suffix}`
+    suffix += 1
+  }
+  usedNames.add(candidate)
+  return candidate
+}
+
+function toAndroidComponentName(iconName) {
+  const safeToken = iconName.toLowerCase().replace(/[^a-z0-9_]+/g, '_')
+  return `fa7.${state.style}.${safeToken}`
+}
+
+async function exportAndroidIconPack({
+  zip,
+  exportableIcons,
+  glyphMap,
+  backgroundImage,
+  packageName,
+  packName,
+  version,
+}) {
+  const rootDir = `${toSafeZipFilename(packName)}/`
+  const usedDrawableNames = new Set()
+  const drawableByGlyph = new Map()
+  const drawableByIcon = new Map()
+
+  state.exportProcessedCount = 0
+  state.exportTotalCount = exportableIcons.length
+  updateExportButton()
+
+  for (const iconName of exportableIcons) {
+    const glyph = glyphMap.get(`fa-${iconName}`)
+    if (!glyph) {
+      state.exportProcessedCount += 1
+      continue
+    }
+
+    let drawableName = drawableByGlyph.get(glyph)
+    if (!drawableName) {
+      drawableName = getUniqueDrawableName(iconName, usedDrawableNames)
+      const iconBlob = await renderIconBlob({
+        glyph,
+        size: state.exportSize,
+        format: 'webp',
+        backgroundImage,
+      })
+      zip.file(`${rootDir}res/drawable-nodpi/${drawableName}.webp`, iconBlob)
+      drawableByGlyph.set(glyph, drawableName)
+    }
+
+    drawableByIcon.set(iconName, drawableName)
+    state.exportProcessedCount += 1
+    if (state.exportTotalCount <= 10 || state.exportProcessedCount % 10 === 0) {
+      updateExportButton()
+    }
+  }
+
+  const iconEntries = [...drawableByIcon.entries()].sort(([left], [right]) => left.localeCompare(right))
+  const drawableNames = [...new Set(drawableByIcon.values())].sort((left, right) => left.localeCompare(right))
+  const escapedPackName = escapeXml(packName)
+  const escapedPackageName = escapeXml(packageName)
+  const escapedVersion = escapeXml(version)
+
+  const appfilter = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+${iconEntries
+  .map(([iconName, drawableName]) => {
+    const component = toAndroidComponentName(iconName)
+    return `  <item component="ComponentInfo{${component}/${component}}" drawable="${escapeXml(drawableName)}" />`
+  })
+  .join('\n')}
+</resources>
+`
+
+  const drawable = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+${drawableNames.map((name) => `  <item drawable="${escapeXml(name)}" />`).join('\n')}
+</resources>
+`
+
+  const strings = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">${escapedPackName}</string>
+  <string name="pack_name">${escapedPackName}</string>
+  <string name="package_name">${escapedPackageName}</string>
+  <string name="pack_version">${escapedVersion}</string>
+</resources>
+`
+
+  const metadata = {
+    packageName,
+    packName,
+    version,
+    style: state.style,
+    iconCount: iconEntries.length,
+    drawableCount: drawableNames.length,
+    optimized: {
+      imageFormat: 'webp',
+      deduplicateByGlyph: true,
+    },
+    generatedAt: new Date().toISOString(),
+  }
+
+  zip.file(`${rootDir}res/xml/appfilter.xml`, appfilter)
+  zip.file(`${rootDir}res/xml/drawable.xml`, drawable)
+  zip.file(`${rootDir}res/values/strings.xml`, strings)
+  zip.file(`${rootDir}blueprint/metadata.json`, JSON.stringify(metadata, null, 2))
 }
 
 async function exportIconPack() {
@@ -388,6 +540,7 @@ async function exportIconPack() {
     const exportableIcons = icons.filter((iconName) => glyphMap.has(`fa-${iconName}`))
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    const packName = state.backgroundName || `${state.style}-icon-pack`
     const exportFilenamePrefix = state.backgroundName ? `${state.backgroundName}-` : ''
     state.exportProcessedCount = 0
     state.exportTotalCount = exportableIcons.length
@@ -395,19 +548,31 @@ async function exportIconPack() {
     await document.fonts.load(`${weight} 100px ${family}`)
 
     const zip = new JSZip()
-    for (const iconName of exportableIcons) {
-      const glyph = glyphMap.get(`fa-${iconName}`)
-      const iconBlob = await renderIconBlob({
-        glyph,
-        size: state.exportSize,
-        format: state.exportFormat,
+    if (state.exportFormat === 'android') {
+      await exportAndroidIconPack({
+        zip,
+        exportableIcons,
+        glyphMap,
         backgroundImage,
+        packageName: androidIconPackPackageName,
+        packName,
+        version: state.exportVersion || '1.0.0',
       })
-      zip.file(`${exportFilenamePrefix}${iconName}.${state.exportFormat}`, iconBlob)
+    } else {
+      for (const iconName of exportableIcons) {
+        const glyph = glyphMap.get(`fa-${iconName}`)
+        const iconBlob = await renderIconBlob({
+          glyph,
+          size: state.exportSize,
+          format: state.exportFormat,
+          backgroundImage,
+        })
+        zip.file(`${exportFilenamePrefix}${iconName}.${state.exportFormat}`, iconBlob)
 
-      state.exportProcessedCount += 1
-      if (state.exportTotalCount <= 10 || state.exportProcessedCount % 10 === 0) {
-        updateExportButton()
+        state.exportProcessedCount += 1
+        if (state.exportTotalCount <= 10 || state.exportProcessedCount % 10 === 0) {
+          updateExportButton()
+        }
       }
     }
 
@@ -415,7 +580,10 @@ async function exportIconPack() {
     const archiveUrl = URL.createObjectURL(archiveBlob)
     const link = document.createElement('a')
     link.href = archiveUrl
-    link.download = `${exportFilenamePrefix}${state.style}-icon-pack-${state.exportFormat}-${state.exportSize}.zip`
+    link.download =
+      state.exportFormat === 'android'
+        ? `${toSafeZipFilename(packName)}.zip`
+        : `${exportFilenamePrefix}${state.style}-icon-pack-${state.exportFormat}-${state.exportSize}.zip`
     link.click()
     URL.revokeObjectURL(archiveUrl)
   } catch (error) {
@@ -694,11 +862,16 @@ window.addEventListener('resize', () => {
 
 exportFormatSelect.addEventListener('change', (event) => {
   state.exportFormat = event.target.value
+  updateExportButton()
 })
 
 exportSizeSelect.addEventListener('change', (event) => {
   const value = Number.parseInt(event.target.value, 10)
   state.exportSize = [128, 256, 512].includes(value) ? value : 512
+})
+
+exportVersionInput.addEventListener('input', (event) => {
+  state.exportVersion = event.target.value.trim() || '1.0.0'
 })
 
 exportButton.addEventListener('click', () => {
