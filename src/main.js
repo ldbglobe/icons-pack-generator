@@ -343,7 +343,7 @@ function getOverlayStyle() {
 
   const left = 50 + state.offsetX * 0.5
   const top = 50 + state.offsetY * 0.5
-  const effectiveSize = state.size * (100 - 2 * state.borderSize) / 100
+  const effectiveSize = Math.max(0, state.size - 2 * state.borderSize)
 
   return `--icon-left:${left}%;--icon-top:${top}%;--icon-size:${effectiveSize}cqmin;--icon-fill:${gradient};`
 }
