@@ -35,6 +35,7 @@ const state = {
   exportSize: 512,
   isExporting: false,
   previewIcons: [],
+  sortOrder: 'asc',
 }
 
 const app = document.querySelector('#app')
@@ -125,7 +126,7 @@ app.innerHTML = `
           <p class="eyebrow">Preview</p>
           <h2>6-column glyph grid</h2>
         </div>
-        <button id="reroll-button" type="button" class="primary-button">Shuffle</button>
+        <button id="sort-button" type="button" class="primary-button">A → Z</button>
       </div>
       <div id="preview-grid" class="preview-grid" aria-live="polite"></div>
     </section>
@@ -138,7 +139,7 @@ const previewGrid = document.querySelector('#preview-grid')
 const colorFields = document.querySelector('#color-fields')
 const addColorButton = document.querySelector('#add-color')
 const resetColorsButton = document.querySelector('#reset-colors')
-const rerollButton = document.querySelector('#reroll-button')
+const sortButton = document.querySelector('#sort-button')
 const exportFormatSelect = document.querySelector('#export-format')
 const exportSizeSelect = document.querySelector('#export-size')
 const exportButton = document.querySelector('#export-button')
@@ -449,16 +450,13 @@ function getCardStyle() {
   return transparentTileStyles.light
 }
 
-function rerollPreviewIcons() {
+function sortPreviewIcons() {
   const icons = [...iconSets[state.style]]
-
-  for (let index = icons.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1))
-    const temporaryIndex = icons[index]
-    icons[index] = icons[randomIndex]
-    icons[randomIndex] = temporaryIndex
+  if (state.sortOrder === 'asc') {
+    icons.sort((a, b) => a.localeCompare(b))
+  } else {
+    icons.sort((a, b) => b.localeCompare(a))
   }
-
   state.previewIcons = icons
 }
 
@@ -552,7 +550,7 @@ backgroundInput.addEventListener('change', (event) => {
 
 styleSelect.addEventListener('change', (event) => {
   state.style = event.target.value
-  state.previewIcons = [...iconSets[state.style]]
+  sortPreviewIcons()
   renderPreview()
 })
 
@@ -616,8 +614,10 @@ resetColorsButton.addEventListener('click', () => {
   renderPreview()
 })
 
-rerollButton.addEventListener('click', () => {
-  rerollPreviewIcons()
+sortButton.addEventListener('click', () => {
+  state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc'
+  sortButton.textContent = state.sortOrder === 'asc' ? 'A → Z' : 'Z → A'
+  sortPreviewIcons()
   renderPreview()
 })
 
@@ -634,7 +634,7 @@ exportButton.addEventListener('click', () => {
   exportIconPack()
 })
 
-rerollPreviewIcons()
+sortPreviewIcons()
 renderColorFields()
 renderPreview()
 updateExportButton()
