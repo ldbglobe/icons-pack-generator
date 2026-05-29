@@ -59,10 +59,10 @@ const state = {
   backgroundUrl: '',
   style: 'solid',
   padding: {
-    top: 16,
-    right: 16,
-    bottom: 16,
-    left: 16,
+    top: 10,
+    right: 10,
+    bottom: 10,
+    left: 10,
   },
   colors: [...defaultColors],
 }
@@ -73,12 +73,8 @@ app.innerHTML = `
   <main class="layout">
     <section class="panel controls-panel">
       <div class="panel-heading">
-        <p class="eyebrow">Issue #1</p>
-        <h1>Basic icon pack interface</h1>
-        <p class="lede">
-          Upload a background, choose a free Font Awesome family, tune the icon padding,
-          and preview a 3×4 grid of random glyph overlays.
-        </p>
+        <p class="eyebrow">Icons Pack Generator</p>
+        <h1>Icon pack preview</h1>
       </div>
 
       <form class="controls" aria-label="Icon pack controls">
@@ -88,7 +84,7 @@ app.innerHTML = `
         </label>
 
         <label class="field">
-          <span>Font Awesome version</span>
+          <span>Font Awesome style</span>
           <select id="style-select">
             <option value="solid">Free Solid</option>
             <option value="regular">Free Regular</option>
@@ -97,35 +93,39 @@ app.innerHTML = `
         </label>
 
         <fieldset class="padding-group">
-          <legend>Icon padding</legend>
-          <div class="padding-grid">
-            <label class="field">
+          <legend>Icon padding (%)</legend>
+          <div class="padding-fields">
+            <div class="padding-field">
               <span>Top</span>
-              <input id="padding-top" type="number" min="0" max="96" step="1" value="16" />
-            </label>
-            <label class="field">
+              <input id="padding-top-range" type="range" min="0" max="50" step="1" value="10" />
+              <input id="padding-top" type="number" min="0" max="50" step="1" value="10" />
+            </div>
+            <div class="padding-field">
               <span>Right</span>
-              <input id="padding-right" type="number" min="0" max="96" step="1" value="16" />
-            </label>
-            <label class="field">
+              <input id="padding-right-range" type="range" min="0" max="50" step="1" value="10" />
+              <input id="padding-right" type="number" min="0" max="50" step="1" value="10" />
+            </div>
+            <div class="padding-field">
               <span>Bottom</span>
-              <input id="padding-bottom" type="number" min="0" max="96" step="1" value="16" />
-            </label>
-            <label class="field">
+              <input id="padding-bottom-range" type="range" min="0" max="50" step="1" value="10" />
+              <input id="padding-bottom" type="number" min="0" max="50" step="1" value="10" />
+            </div>
+            <div class="padding-field">
               <span>Left</span>
-              <input id="padding-left" type="number" min="0" max="96" step="1" value="16" />
-            </label>
+              <input id="padding-left-range" type="range" min="0" max="50" step="1" value="10" />
+              <input id="padding-left" type="number" min="0" max="50" step="1" value="10" />
+            </div>
           </div>
         </fieldset>
 
         <fieldset class="colors-group">
-          <legend>Font icon colors</legend>
+          <legend>Icon colors</legend>
           <div id="color-fields" class="color-fields" aria-live="polite"></div>
           <div class="color-actions">
             <button id="add-color" type="button" class="secondary-button">Add color</button>
             <button id="reset-colors" type="button" class="secondary-button">Reset</button>
           </div>
-          <p class="hint">Multiple colors render as a gradient to support duotone-style previews. Up to four colors are supported to keep the controls readable.</p>
+          <p class="hint">Multiple colors render as a gradient. Up to four colors.</p>
         </fieldset>
       </form>
     </section>
@@ -134,9 +134,9 @@ app.innerHTML = `
       <div class="preview-header">
         <div>
           <p class="eyebrow">Preview</p>
-          <h2>Randomized 12-cell grid</h2>
+          <h2>3×4 icon grid</h2>
         </div>
-        <button id="reroll-button" type="button" class="primary-button">Shuffle glyphs</button>
+        <button id="reroll-button" type="button" class="primary-button">Shuffle</button>
       </div>
       <div id="preview-grid" class="preview-grid" aria-live="polite"></div>
     </section>
@@ -151,14 +151,14 @@ const addColorButton = document.querySelector('#add-color')
 const resetColorsButton = document.querySelector('#reset-colors')
 const rerollButton = document.querySelector('#reroll-button')
 const paddingInputs = {
-  top: document.querySelector('#padding-top'),
-  right: document.querySelector('#padding-right'),
-  bottom: document.querySelector('#padding-bottom'),
-  left: document.querySelector('#padding-left'),
+  top: { range: document.querySelector('#padding-top-range'), number: document.querySelector('#padding-top') },
+  right: { range: document.querySelector('#padding-right-range'), number: document.querySelector('#padding-right') },
+  bottom: { range: document.querySelector('#padding-bottom-range'), number: document.querySelector('#padding-bottom') },
+  left: { range: document.querySelector('#padding-left-range'), number: document.querySelector('#padding-left') },
 }
 
 function clampPadding(value) {
-  return Math.max(0, Math.min(96, Number(value) || 0))
+  return Math.max(0, Math.min(50, Number(value) || 0))
 }
 
 function isValidHexColor(value) {
@@ -171,7 +171,7 @@ function getRandomIcon(style) {
 }
 
 function getOverlayStyle() {
-  const padding = `${state.padding.top}px ${state.padding.right}px ${state.padding.bottom}px ${state.padding.left}px`
+  const padding = `${state.padding.top}% ${state.padding.right}% ${state.padding.bottom}% ${state.padding.left}%`
   const gradient = state.colors.length === 1
     ? state.colors[0]
     : `linear-gradient(135deg, ${state.colors.join(', ')})`
@@ -261,11 +261,17 @@ styleSelect.addEventListener('change', (event) => {
   renderPreview()
 })
 
-Object.entries(paddingInputs).forEach(([side, input]) => {
-  input.addEventListener('input', (event) => {
+Object.entries(paddingInputs).forEach(([side, { range, number }]) => {
+  range.addEventListener('input', (event) => {
     const nextValue = clampPadding(event.target.value)
     state.padding[side] = nextValue
-    event.target.value = nextValue
+    number.value = nextValue
+    renderPreview()
+  })
+  number.addEventListener('input', (event) => {
+    const nextValue = clampPadding(event.target.value)
+    state.padding[side] = nextValue
+    range.value = nextValue
     renderPreview()
   })
 })
