@@ -647,7 +647,8 @@ async function exportIconPack() {
     const exportableIcons = icons.filter((iconName) => glyphMap.has(`fa-${iconName}`))
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
-    const exportFilenamePrefix = state.backgroundName ? `${state.backgroundName}-` : ''
+    const backgroundFilenamePart = toSafeFilenamePart(state.backgroundName || '')
+    const zipBaseName = backgroundFilenamePart || 'icon-pack'
     state.exportProcessedCount = 0
     state.exportTotalCount = exportableIcons.length
     updateExportButton()
@@ -662,7 +663,7 @@ async function exportIconPack() {
         format: state.exportFormat,
         backgroundImage,
       })
-      zip.file(`${exportFilenamePrefix}${iconName}.${state.exportFormat}`, iconBlob)
+      zip.file(`${iconName}.${state.exportFormat}`, iconBlob)
 
       state.exportProcessedCount += 1
       if (state.exportTotalCount <= 10 || state.exportProcessedCount % 10 === 0) {
@@ -674,7 +675,7 @@ async function exportIconPack() {
     const archiveUrl = URL.createObjectURL(archiveBlob)
     const link = document.createElement('a')
     link.href = archiveUrl
-    link.download = `${exportFilenamePrefix}${state.style}-icon-pack-${state.exportFormat}-${state.exportSize}.zip`
+    link.download = `${zipBaseName}-${state.exportFormat}-${state.exportSize}.zip`
     link.click()
     URL.revokeObjectURL(archiveUrl)
   } catch (error) {
