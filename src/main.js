@@ -524,17 +524,16 @@ function renderBackgroundSamples() {
           <div class="background-sample-grid">
             ${group.samples
               .map(
-                (sample, index) => `
+                (sample) => `
                   <button
                     type="button"
                     class="background-sample${state.backgroundSampleId === sample.id ? ' is-active' : ''}"
                     data-background-sample="${sample.id}"
                     aria-pressed="${state.backgroundSampleId === sample.id}"
-                    aria-label="Select ${sample.label} background, option ${index + 1} of ${group.samples.length}"
+                    aria-label="Select ${sample.label} background"
                     title="${sample.label}"
                   >
                     <img class="background-sample-image" src="${sample.url}" alt="" />
-                    <span class="background-sample-badge">${index + 1}</span>
                   </button>
                 `,
               )
