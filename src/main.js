@@ -5,6 +5,10 @@ import JSZip from 'jszip'
 import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 
 const defaultColors = ['#ffffff']
+const quickStartBackgroundModules = import.meta.glob('../assets/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
+  eager: true,
+  import: 'default',
+})
 
 function createFolderSampleUrl({ bodyTop, bodyBottom, tabTop, tabBottom, highlight }) {
   const svg = `
@@ -33,7 +37,7 @@ function createFolderSampleUrl({ bodyTop, bodyBottom, tabTop, tabBottom, highlig
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
 
-const backgroundSampleGroups = [
+const fallbackBackgroundSampleGroups = [
   {
     label: 'Blue',
     samples: [
@@ -84,6 +88,40 @@ const backgroundSampleGroups = [
   },
 ]
 
+function toTitleCase(value) {
+  return value.replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function formatBackgroundSampleLabel(filePath) {
+  const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? 'Background'
+  return toTitleCase(fileName.replace(/[-_]+/g, ' '))
+}
+
+function getQuickStartBackgroundSampleGroups() {
+  const samples = Object.entries(quickStartBackgroundModules)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([filePath, url], index) => {
+      const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? `background-${index + 1}`
+      return {
+        id: `asset-${toSafeFilenamePart(fileName) || `background-${index + 1}`}`,
+        label: formatBackgroundSampleLabel(filePath),
+        url,
+      }
+    })
+
+  if (samples.length === 0) {
+    return fallbackBackgroundSampleGroups
+  }
+
+  return [
+    {
+      label: 'Quick start',
+      samples,
+    },
+  ]
+}
+
+const backgroundSampleGroups = getQuickStartBackgroundSampleGroups()
 const backgroundSamplesById = new Map()
 
 for (const group of backgroundSampleGroups) {
@@ -351,7 +389,15 @@ function drawBackgroundImageCover(context, image, size) {
   context.drawImage(image, x, y, width, height)
 }
 
-async function extractImagePalette(imageUrl) {
+function extractPaletteFromImageData(imageData) {
+  const rawPalette = quantize(imageData, 16)
+  return rawPalette.map(([r, g, b]) => {
+    const toHex = (n) => n.toString(16).padStart(2, '0')
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  })
+}
+
+async function sampleBackgroundImageData(imageUrl) {
   const image = await loadImage(imageUrl)
   const sampleSize = 64
   const canvas = document.createElement('canvas')
@@ -359,12 +405,74 @@ async function extractImagePalette(imageUrl) {
   canvas.height = sampleSize
   const context = canvas.getContext('2d')
   drawBackgroundImageCover(context, image, sampleSize)
-  const { data } = context.getImageData(0, 0, sampleSize, sampleSize)
-  const rawPalette = quantize(data, 16)
-  return rawPalette.map(([r, g, b]) => {
-    const toHex = (n) => n.toString(16).padStart(2, '0')
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-  })
+  return context.getImageData(0, 0, sampleSize, sampleSize).data
+}
+
+function getRecommendedGlyphColor(imageData) {
+  const colorBuckets = new Map()
+  let visiblePixelCount = 0
+  let whitePixelCount = 0
+
+  for (let index = 0; index < imageData.length; index += 4) {
+    const alpha = imageData[index + 3]
+
+    if (alpha < 32) {
+      continue
+    }
+
+    const r = imageData[index]
+    const g = imageData[index + 1]
+    const b = imageData[index + 2]
+
+    visiblePixelCount += 1
+
+    if (r >= 245 && g >= 245 && b >= 245) {
+      whitePixelCount += 1
+      continue
+    }
+
+    const bucketKey = [r, g, b].map((value) => Math.min(Math.round(value / 16) * 16, 255)).join(',')
+    const bucket = colorBuckets.get(bucketKey) ?? { count: 0, rTotal: 0, gTotal: 0, bTotal: 0 }
+
+    bucket.count += 1
+    bucket.rTotal += r
+    bucket.gTotal += g
+    bucket.bTotal += b
+    colorBuckets.set(bucketKey, bucket)
+  }
+
+  if (visiblePixelCount === 0) {
+    return defaultColors[0]
+  }
+
+  const whiteRatio = whitePixelCount / visiblePixelCount
+  if (whiteRatio < 0.5 || colorBuckets.size === 0) {
+    return defaultColors[0]
+  }
+
+  let dominantBucket = null
+
+  for (const bucket of colorBuckets.values()) {
+    if (!dominantBucket || bucket.count > dominantBucket.count) {
+      dominantBucket = bucket
+    }
+  }
+
+  if (!dominantBucket) {
+    return defaultColors[0]
+  }
+
+  const toHex = (value) => Math.round(value).toString(16).padStart(2, '0')
+  return `#${toHex(dominantBucket.rTotal / dominantBucket.count)}${toHex(dominantBucket.gTotal / dominantBucket.count)}${toHex(dominantBucket.bTotal / dominantBucket.count)}`
+}
+
+async function analyzeBackgroundImage(imageUrl) {
+  const imageData = await sampleBackgroundImageData(imageUrl)
+
+  return {
+    palette: extractPaletteFromImageData(imageData),
+    recommendedGlyphColor: getRecommendedGlyphColor(imageData),
+  }
 }
 
 function renderPaletteSwatches() {
@@ -743,10 +851,13 @@ async function applyBackground({ url, name = '', sampleId = '', isBlobUrl = fals
   }
 
   try {
-    const palette = await extractImagePalette(url)
+    const { palette, recommendedGlyphColor } = await analyzeBackgroundImage(url)
     if (state.backgroundUrl === url) {
       state.palette = palette
+      state.colors = [recommendedGlyphColor]
+      renderColorFields()
       renderPaletteSwatches()
+      renderPreview()
     }
   } catch (error) {
     console.error(`Failed to extract color palette from background image "${name || sampleId || url}":`, error)
