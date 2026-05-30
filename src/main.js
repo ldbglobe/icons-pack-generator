@@ -450,9 +450,23 @@ function getRecommendedGlyphColor(imageData) {
     return defaultColors[0]
   }
 
+  const toLinear = (c) => {
+    const s = c / 255
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  }
+
   let dominantBucket = null
 
   for (const bucket of colorBuckets.values()) {
+    const avgR = bucket.rTotal / bucket.count
+    const avgG = bucket.gTotal / bucket.count
+    const avgB = bucket.bTotal / bucket.count
+    // ITU-R BT.709 coefficients for WCAG relative luminance
+    const luminance = 0.2126 * toLinear(avgR) + 0.7152 * toLinear(avgG) + 0.0722 * toLinear(avgB)
+    const contrastWithWhite = 1.05 / (luminance + 0.05)
+    if (contrastWithWhite < 3) {
+      continue
+    }
     if (!dominantBucket || bucket.count > dominantBucket.count) {
       dominantBucket = bucket
     }
