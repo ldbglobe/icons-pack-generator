@@ -9,6 +9,7 @@ import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 const defaultColors = ['#ffffff']
 const defaultExportSize = 128
 const objectUrlRevokeDelayMs = 1000
+const paletteAlphaThreshold = 32
 const quickStartBackgroundModules = import.meta.glob('../assets/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
   eager: true,
   import: 'default',
@@ -480,8 +481,27 @@ function drawBackgroundImageCover(context, image, size) {
   context.drawImage(image, x, y, width, height)
 }
 
+function collectOpaqueImageData(imageData, alphaThreshold = paletteAlphaThreshold) {
+  const opaquePixels = []
+
+  for (let index = 0; index < imageData.data.length; index += 4) {
+    if (imageData.data[index + 3] < alphaThreshold) {
+      continue
+    }
+
+    opaquePixels.push(imageData.data[index], imageData.data[index + 1], imageData.data[index + 2], 255)
+  }
+
+  return new Uint8Array(opaquePixels)
+}
+
 function extractPaletteFromImageData(imageData) {
-  const rawPalette = quantize(imageData, 10)
+  const opaqueImageData = collectOpaqueImageData(imageData)
+  if (opaqueImageData.length === 0) {
+    return []
+  }
+
+  const rawPalette = quantize(opaqueImageData, 10)
   return rawPalette.map(([r, g, b]) => {
     const toHex = (n) => n.toString(16).padStart(2, '0')
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`
@@ -496,22 +516,26 @@ async function sampleBackgroundImageData(imageUrl) {
   canvas.height = sampleSize
   const context = canvas.getContext('2d')
   drawBackgroundImageCover(context, image, sampleSize)
-  return context.getImageData(0, 0, sampleSize, sampleSize).data
+  return context.getImageData(0, 0, sampleSize, sampleSize)
 }
 
 function getRecommendedGlyphColor(imageData, palette) {
+  const data = imageData.data
+  const width = imageData.width
+  const height = imageData.height
   const colorBuckets = new Map()
+  let totalOpaquePixels = 0
 
-  for (let index = 0; index < imageData.length; index += 4) {
-    const alpha = imageData[index + 3]
+  for (let index = 0; index < data.length; index += 4) {
+    const alpha = data[index + 3]
 
-    if (alpha < 32) {
+    if (alpha < paletteAlphaThreshold) {
       continue
     }
 
-    const r = imageData[index]
-    const g = imageData[index + 1]
-    const b = imageData[index + 2]
+    const r = data[index]
+    const g = data[index + 1]
+    const b = data[index + 2]
 
     const bucketKey = [r, g, b].map((value) => Math.min(Math.round(value / 16) * 16, 255)).join(',')
     const bucket = colorBuckets.get(bucketKey) ?? { count: 0, rTotal: 0, gTotal: 0, bTotal: 0 }
@@ -521,6 +545,7 @@ function getRecommendedGlyphColor(imageData, palette) {
     bucket.gTotal += g
     bucket.bTotal += b
     colorBuckets.set(bucketKey, bucket)
+    totalOpaquePixels += 1
   }
 
   if (colorBuckets.size === 0) {
@@ -541,19 +566,44 @@ function getRecommendedGlyphColor(imageData, palette) {
     return (lighter + 0.05) / (darker + 0.05)
   }
 
-  // Sort buckets by pixel count descending; the most frequent color represents the background
-  const sortedBuckets = [...colorBuckets.values()].sort((a, b) => b.count - a.count)
+  const centerStartX = Math.floor(width * 0.2)
+  const centerEndX = Math.ceil(width * 0.8)
+  const centerStartY = Math.floor(height * 0.2)
+  const centerEndY = Math.ceil(height * 0.8)
+  let centerCount = 0
+  let centerRTotal = 0
+  let centerGTotal = 0
+  let centerBTotal = 0
 
-  const bgBucket = sortedBuckets[0]
-  const bgAvgR = bgBucket.rTotal / bgBucket.count
-  const bgAvgG = bgBucket.gTotal / bgBucket.count
-  const bgAvgB = bgBucket.bTotal / bgBucket.count
-  const bgLuminance = getLuminance(bgAvgR, bgAvgG, bgAvgB)
+  for (let y = centerStartY; y < centerEndY; y += 1) {
+    for (let x = centerStartX; x < centerEndX; x += 1) {
+      const index = (y * width + x) * 4
+      if (data[index + 3] < paletteAlphaThreshold) {
+        continue
+      }
+      centerCount += 1
+      centerRTotal += data[index]
+      centerGTotal += data[index + 1]
+      centerBTotal += data[index + 2]
+    }
+  }
+
+  const centerAvgR = centerCount > 0 ? centerRTotal / centerCount : 0
+  const centerAvgG = centerCount > 0 ? centerGTotal / centerCount : 0
+  const centerAvgB = centerCount > 0 ? centerBTotal / centerCount : 0
+  const globalAvgR = [...colorBuckets.values()].reduce((total, bucket) => total + bucket.rTotal, 0) / totalOpaquePixels
+  const globalAvgG = [...colorBuckets.values()].reduce((total, bucket) => total + bucket.gTotal, 0) / totalOpaquePixels
+  const globalAvgB = [...colorBuckets.values()].reduce((total, bucket) => total + bucket.bTotal, 0) / totalOpaquePixels
+  const targetLuminance = getLuminance(
+    centerCount > 0 ? centerAvgR : globalAvgR,
+    centerCount > 0 ? centerAvgG : globalAvgG,
+    centerCount > 0 ? centerAvgB : globalAvgB,
+  )
 
   if (palette.length > 0) {
     const parseHexChannel = (hex, start) => Number.parseInt(hex.slice(start, start + 2), 16)
     let bestColor = palette[0]
-    let bestContrast = 0
+    let bestScore = 0
 
     for (const color of palette) {
       const normalizedColor = color.toLowerCase()
@@ -561,15 +611,34 @@ function getRecommendedGlyphColor(imageData, palette) {
         continue
       }
 
+      const colorR = parseHexChannel(normalizedColor, 1)
+      const colorG = parseHexChannel(normalizedColor, 3)
+      const colorB = parseHexChannel(normalizedColor, 5)
       const colorLuminance = getLuminance(
-        parseHexChannel(normalizedColor, 1),
-        parseHexChannel(normalizedColor, 3),
-        parseHexChannel(normalizedColor, 5),
+        colorR,
+        colorG,
+        colorB,
       )
-      const contrast = getContrastRatio(bgLuminance, colorLuminance)
+      const contrast = getContrastRatio(targetLuminance, colorLuminance)
+      let bestBucketDistance = Number.POSITIVE_INFINITY
+      let matchedBucketCount = 0
 
-      if (contrast > bestContrast) {
-        bestContrast = contrast
+      for (const bucketKey of colorBuckets.keys()) {
+        const [bucketR, bucketG, bucketB] = bucketKey.split(',').map(Number)
+        // Use squared RGB distance (no sqrt needed) to find the closest global bucket.
+        const distance = (colorR - bucketR) ** 2 + (colorG - bucketG) ** 2 + (colorB - bucketB) ** 2
+        if (distance < bestBucketDistance) {
+          bestBucketDistance = distance
+          matchedBucketCount = colorBuckets.get(bucketKey)?.count ?? 0
+        }
+      }
+
+      const presence = matchedBucketCount / totalOpaquePixels
+      // Favor high-contrast colors while slightly boosting colors more present in the global palette.
+      const score = contrast * (1 + presence)
+
+      if (score > bestScore) {
+        bestScore = score
         bestColor = normalizedColor
       }
     }
@@ -580,7 +649,7 @@ function getRecommendedGlyphColor(imageData, palette) {
   // No palette available — fall back to white or black.
   // 0.179 is the luminance crossover where black and white provide equal WCAG contrast:
   // (L + 0.05) / 0.05 = 1.05 / (L + 0.05) → L ≈ 0.179
-  return bgLuminance > 0.179 ? '#000000' : defaultColors[0]
+  return targetLuminance > 0.179 ? '#000000' : defaultColors[0]
 }
 
 async function analyzeBackgroundImage(imageUrl) {
