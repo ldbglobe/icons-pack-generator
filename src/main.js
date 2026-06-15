@@ -7,6 +7,7 @@ import Fuse from 'fuse.js'
 import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 
 const defaultColors = ['#ffffff']
+const defaultExportSize = 128
 const quickStartBackgroundModules = import.meta.glob('../assets/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
   eager: true,
   import: 'default',
@@ -145,7 +146,7 @@ const state = {
   colors: [...defaultColors],
   palette: [],
   exportFormat: 'png',
-  exportSize: 128,
+  exportSize: defaultExportSize,
   isExporting: false,
   exportProcessedCount: 0,
   exportTotalCount: 0,
@@ -257,7 +258,7 @@ app.innerHTML = `
             <label class="field">
               <span>Size</span>
               <select id="export-size">
-                <option value="128" selected>128 (default)</option>
+                <option value="128">128 (default)</option>
                 <option value="256">256</option>
                 <option value="512">512</option>
               </select>
@@ -825,6 +826,14 @@ function getPreviewGradient() {
   return `linear-gradient(135deg, ${stops.join(', ')})`
 }
 
+function getCachedGlyphMap() {
+  if (!cachedGlyphMap) {
+    cachedGlyphMap = getGlyphMap()
+  }
+
+  return cachedGlyphMap
+}
+
 function getPreviewTileSize() {
   const styles = getComputedStyle(previewGrid)
   const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0
@@ -863,11 +872,7 @@ async function renderPreview() {
   await document.fonts.load(`${weight} ${previewTileSize}px ${family}`)
   if (version !== previewRenderVersion) return
 
-  if (!cachedGlyphMap) {
-    cachedGlyphMap = getGlyphMap()
-  }
-
-  const glyphMap = cachedGlyphMap
+  const glyphMap = getCachedGlyphMap()
   const structureKey = getPreviewStructureKey()
 
   if (previewStructureKey !== structureKey) {
@@ -1130,7 +1135,7 @@ exportFormatSelect.addEventListener('change', (event) => {
 
 exportSizeSelect.addEventListener('change', (event) => {
   const value = Number.parseInt(event.target.value, 10)
-  state.exportSize = [128, 256, 512].includes(value) ? value : 128
+  state.exportSize = [128, 256, 512].includes(value) ? value : defaultExportSize
 })
 
 exportButton.addEventListener('click', () => {
@@ -1144,8 +1149,7 @@ previewGrid.addEventListener('click', async (event) => {
   }
 
   const iconClassName = tile.dataset.previewIcon
-  const glyphMap = cachedGlyphMap ?? getGlyphMap()
-  cachedGlyphMap = glyphMap
+  const glyphMap = getCachedGlyphMap()
   const glyph = glyphMap.get(iconClassName) ?? ''
 
   if (!glyph) {
