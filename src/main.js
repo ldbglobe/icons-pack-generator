@@ -145,7 +145,7 @@ const state = {
   colors: [...defaultColors],
   palette: [],
   exportFormat: 'png',
-  exportSize: 512,
+  exportSize: 128,
   isExporting: false,
   exportProcessedCount: 0,
   exportTotalCount: 0,
@@ -257,9 +257,9 @@ app.innerHTML = `
             <label class="field">
               <span>Size</span>
               <select id="export-size">
-                <option value="128">128</option>
+                <option value="128" selected>128 (default)</option>
                 <option value="256">256</option>
-                <option value="512" selected>512 (default)</option>
+                <option value="512">512</option>
               </select>
             </label>
           </div>
@@ -479,7 +479,7 @@ function drawBackgroundImageCover(context, image, size) {
 }
 
 function extractPaletteFromImageData(imageData) {
-  const rawPalette = quantize(imageData, 8)
+  const rawPalette = quantize(imageData, 10)
   return rawPalette.map(([r, g, b]) => {
     const toHex = (n) => n.toString(16).padStart(2, '0')
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`
@@ -497,7 +497,7 @@ async function sampleBackgroundImageData(imageUrl) {
   return context.getImageData(0, 0, sampleSize, sampleSize).data
 }
 
-function getRecommendedGlyphColor(imageData) {
+function getRecommendedGlyphColor(imageData, palette = []) {
   const colorBuckets = new Map()
 
   for (let index = 0; index < imageData.length; index += 4) {
@@ -548,18 +548,34 @@ function getRecommendedGlyphColor(imageData) {
   const bgAvgB = bgBucket.bTotal / bgBucket.count
   const bgLuminance = getLuminance(bgAvgR, bgAvgG, bgAvgB)
 
-  // Find the most frequent color that has sufficient contrast with the dominant background color
-  const toHex = (value) => Math.round(value).toString(16).padStart(2, '0')
-  for (const bucket of sortedBuckets.slice(1)) {
-    const avgR = bucket.rTotal / bucket.count
-    const avgG = bucket.gTotal / bucket.count
-    const avgB = bucket.bTotal / bucket.count
-    if (getContrastRatio(bgLuminance, getLuminance(avgR, avgG, avgB)) >= 3) {
-      return `#${toHex(avgR)}${toHex(avgG)}${toHex(avgB)}`
+  if (palette.length > 0) {
+    const parseHexChannel = (hex, start) => Number.parseInt(hex.slice(start, start + 2), 16)
+    let bestColor = palette[0]
+    let bestContrast = 0
+
+    for (const color of palette) {
+      const normalizedColor = color.toLowerCase()
+      if (!/^#[0-9a-f]{6}$/.test(normalizedColor)) {
+        continue
+      }
+
+      const colorLuminance = getLuminance(
+        parseHexChannel(normalizedColor, 1),
+        parseHexChannel(normalizedColor, 3),
+        parseHexChannel(normalizedColor, 5),
+      )
+      const contrast = getContrastRatio(bgLuminance, colorLuminance)
+
+      if (contrast > bestContrast) {
+        bestContrast = contrast
+        bestColor = normalizedColor
+      }
     }
+
+    return bestColor
   }
 
-  // No contrasting color found — fall back to white or black.
+  // No palette available — fall back to white or black.
   // 0.179 is the luminance crossover where black and white provide equal WCAG contrast:
   // (L + 0.05) / 0.05 = 1.05 / (L + 0.05) → L ≈ 0.179
   return bgLuminance > 0.179 ? '#000000' : defaultColors[0]
@@ -567,10 +583,11 @@ function getRecommendedGlyphColor(imageData) {
 
 async function analyzeBackgroundImage(imageUrl) {
   const imageData = await sampleBackgroundImageData(imageUrl)
+  const palette = extractPaletteFromImageData(imageData)
 
   return {
-    palette: extractPaletteFromImageData(imageData),
-    recommendedGlyphColor: getRecommendedGlyphColor(imageData),
+    palette,
+    recommendedGlyphColor: getRecommendedGlyphColor(imageData, palette),
   }
 }
 
@@ -866,8 +883,11 @@ async function renderPreview() {
       card.className = 'preview-card'
       card.setAttribute('aria-label', `Preview tile ${index + 1}`)
 
-      const tile = document.createElement('div')
+      const tile = document.createElement('button')
       tile.className = 'preview-tile'
+      tile.type = 'button'
+      tile.dataset.previewIcon = iconClassName
+      tile.setAttribute('aria-label', `Download ${iconName}`)
 
       const glyphElement = document.createElement('span')
       glyphElement.className = 'preview-glyph'
@@ -1110,11 +1130,44 @@ exportFormatSelect.addEventListener('change', (event) => {
 
 exportSizeSelect.addEventListener('change', (event) => {
   const value = Number.parseInt(event.target.value, 10)
-  state.exportSize = [128, 256, 512].includes(value) ? value : 512
+  state.exportSize = [128, 256, 512].includes(value) ? value : 128
 })
 
 exportButton.addEventListener('click', () => {
   exportIconPack()
+})
+
+previewGrid.addEventListener('click', async (event) => {
+  const tile = event.target.closest('[data-preview-icon]')
+  if (!tile) {
+    return
+  }
+
+  const iconClassName = tile.dataset.previewIcon
+  const glyphMap = cachedGlyphMap ?? getGlyphMap()
+  cachedGlyphMap = glyphMap
+  const glyph = glyphMap.get(iconClassName) ?? ''
+
+  if (!glyph) {
+    return
+  }
+
+  try {
+    const blob = await renderIconBlob({
+      glyph,
+      size: state.exportSize,
+      format: state.exportFormat,
+      backgroundImage: state.backgroundUrl,
+    })
+    const iconName = stripFaPrefix(iconClassName)
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `${iconName}.${state.exportFormat}`
+    link.click()
+    URL.revokeObjectURL(link.href)
+  } catch (error) {
+    console.error(`Failed to export icon "${iconClassName}":`, error)
+  }
 })
 
 sortPreviewIcons()
