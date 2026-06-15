@@ -9,6 +9,7 @@ import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 const defaultColors = ['#ffffff']
 const defaultExportSize = 128
 const objectUrlRevokeDelayMs = 1000
+const paletteAlphaThreshold = 32
 const quickStartBackgroundModules = import.meta.glob('../assets/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
   eager: true,
   import: 'default',
@@ -480,7 +481,7 @@ function drawBackgroundImageCover(context, image, size) {
   context.drawImage(image, x, y, width, height)
 }
 
-function collectOpaqueImageData(imageData, alphaThreshold = 32) {
+function collectOpaqueImageData(imageData, alphaThreshold = paletteAlphaThreshold) {
   const opaquePixels = []
 
   for (let index = 0; index < imageData.data.length; index += 4) {
@@ -528,7 +529,7 @@ function getRecommendedGlyphColor(imageData, palette) {
   for (let index = 0; index < data.length; index += 4) {
     const alpha = data[index + 3]
 
-    if (alpha < 32) {
+    if (alpha < paletteAlphaThreshold) {
       continue
     }
 
@@ -577,7 +578,7 @@ function getRecommendedGlyphColor(imageData, palette) {
   for (let y = centerStartY; y < centerEndY; y += 1) {
     for (let x = centerStartX; x < centerEndX; x += 1) {
       const index = (y * width + x) * 4
-      if (data[index + 3] < 32) {
+      if (data[index + 3] < paletteAlphaThreshold) {
         continue
       }
       centerCount += 1
@@ -624,6 +625,7 @@ function getRecommendedGlyphColor(imageData, palette) {
 
       for (const bucketKey of colorBuckets.keys()) {
         const [bucketR, bucketG, bucketB] = bucketKey.split(',').map(Number)
+        // Use squared RGB distance (no sqrt needed) to find the closest global bucket.
         const distance = (colorR - bucketR) ** 2 + (colorG - bucketG) ** 2 + (colorB - bucketB) ** 2
         if (distance < bestBucketDistance) {
           bestBucketDistance = distance
@@ -632,6 +634,7 @@ function getRecommendedGlyphColor(imageData, palette) {
       }
 
       const presence = matchedBucketCount / totalOpaquePixels
+      // Favor high-contrast colors while slightly boosting colors more present in the global palette.
       const score = contrast * (1 + presence)
 
       if (score > bestScore) {
