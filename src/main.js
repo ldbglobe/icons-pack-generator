@@ -8,6 +8,7 @@ import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 
 const defaultColors = ['#ffffff']
 const defaultExportSize = 128
+const objectUrlRevokeDelayMs = 1000
 const quickStartBackgroundModules = import.meta.glob('../assets/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
   eager: true,
   import: 'default',
@@ -891,6 +892,7 @@ async function renderPreview() {
       const tile = document.createElement('button')
       tile.className = 'preview-tile'
       tile.type = 'button'
+      tile.tabIndex = 0
       tile.dataset.previewIcon = iconClassName
       tile.setAttribute('aria-label', `Download ${iconName}`)
 
@@ -1169,7 +1171,7 @@ previewGrid.addEventListener('click', async (event) => {
     link.href = objectUrl
     link.download = `${iconName}.${state.exportFormat}`
     link.click()
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), objectUrlRevokeDelayMs)
   } catch (error) {
     console.error(`Failed to export icon "${iconClassName}":`, error)
   }
