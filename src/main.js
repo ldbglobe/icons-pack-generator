@@ -498,7 +498,7 @@ async function sampleBackgroundImageData(imageUrl) {
   return context.getImageData(0, 0, sampleSize, sampleSize).data
 }
 
-function getRecommendedGlyphColor(imageData, palette = []) {
+function getRecommendedGlyphColor(imageData, palette) {
   const colorBuckets = new Map()
 
   for (let index = 0; index < imageData.length; index += 4) {
@@ -1165,10 +1165,11 @@ previewGrid.addEventListener('click', async (event) => {
     })
     const iconName = stripFaPrefix(iconClassName)
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const objectUrl = URL.createObjectURL(blob)
+    link.href = objectUrl
     link.download = `${iconName}.${state.exportFormat}`
     link.click()
-    URL.revokeObjectURL(link.href)
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
   } catch (error) {
     console.error(`Failed to export icon "${iconClassName}":`, error)
   }
