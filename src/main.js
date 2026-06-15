@@ -1,7 +1,9 @@
 import './style.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import iconSets from './icon-sets.json'
+import iconsIndex from './icons-index.json'
 import JSZip from 'jszip'
+import Fuse from 'fuse.js'
 import { GIFEncoder, applyPalette, quantize } from 'gifenc'
 
 const defaultColors = ['#ffffff']
@@ -148,7 +150,32 @@ const state = {
   exportTotalCount: 0,
   previewIcons: [],
   sortOrder: 'asc',
+  searchQuery: '',
 }
+
+function normalizeSearchTerm(value) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+}
+
+const searchableIconsByStyle = Object.fromEntries(
+  Object.entries(iconsIndex).map(([style, entries]) => [
+    style,
+    entries.map((entry) => ({
+      ...entry,
+      normalizedName: normalizeSearchTerm(entry.name),
+      normalizedCssClass: normalizeSearchTerm(entry.cssClass),
+      normalizedAliases: entry.aliases.map(normalizeSearchTerm),
+      normalizedCategories: entry.categories.map(normalizeSearchTerm),
+      normalizedSearchTerms: entry.searchTerms.map(normalizeSearchTerm),
+    })),
+  ]),
+)
+
+const fuseByStyle = new Map()
 
 const app = document.querySelector('#app')
 
@@ -246,7 +273,13 @@ app.innerHTML = `
           <p class="eyebrow">Preview</p>
           <h2>6-column glyph grid</h2>
         </div>
-        <button id="sort-button" type="button" class="primary-button">A → Z</button>
+        <div class="preview-actions">
+          <label class="field preview-search-field">
+            <span>Search icons</span>
+            <input id="search-input" type="search" placeholder="Name, alias, category, keyword..." autocomplete="off" />
+          </label>
+          <button id="sort-button" type="button" class="primary-button">A → Z</button>
+        </div>
       </div>
       <div id="preview-grid" class="preview-grid" aria-live="polite"></div>
     </section>
@@ -263,6 +296,7 @@ const paletteSwatches = document.querySelector('#palette-swatches')
 const addColorButton = document.querySelector('#add-color')
 const resetColorsButton = document.querySelector('#reset-colors')
 const sortButton = document.querySelector('#sort-button')
+const searchInput = document.querySelector('#search-input')
 const exportFormatSelect = document.querySelector('#export-format')
 const exportSizeSelect = document.querySelector('#export-size')
 const exportButton = document.querySelector('#export-button')
@@ -356,6 +390,63 @@ function getExportIconNames() {
     .filter((iconClass) => iconClass.startsWith('fa-'))
     .map(stripFaPrefix)
     .sort((left, right) => left.localeCompare(right))
+}
+
+function getFuseForStyle(style) {
+  if (fuseByStyle.has(style)) {
+    return fuseByStyle.get(style)
+  }
+
+  const fuse = new Fuse(searchableIconsByStyle[style] ?? [], {
+    ignoreLocation: true,
+    threshold: 0.35,
+    minMatchCharLength: 2,
+    keys: [
+      { name: 'normalizedName', weight: 0.35 },
+      { name: 'normalizedCssClass', weight: 0.25 },
+      { name: 'normalizedAliases', weight: 0.15 },
+      { name: 'normalizedSearchTerms', weight: 0.15 },
+      { name: 'normalizedCategories', weight: 0.1 },
+    ],
+  })
+
+  fuseByStyle.set(style, fuse)
+  return fuse
+}
+
+function getSortedStyleIcons(style) {
+  const icons = (iconSets[style] ?? []).filter((iconClass) => iconClass.startsWith('fa-'))
+  if (state.sortOrder === 'asc') {
+    icons.sort((left, right) => left.localeCompare(right))
+  } else {
+    icons.sort((left, right) => right.localeCompare(left))
+  }
+  return icons
+}
+
+function getFilteredStyleIcons(style) {
+  const sortedIcons = getSortedStyleIcons(style)
+  const query = normalizeSearchTerm(state.searchQuery)
+
+  if (!query) {
+    return sortedIcons
+  }
+
+  const fuse = getFuseForStyle(style)
+  const matchedClasses = fuse.search(query).map((result) => result.item.cssClass)
+  const availableClassNames = new Set(sortedIcons)
+  const seenClassNames = new Set()
+  const filteredIcons = []
+
+  for (const className of matchedClasses) {
+    if (!availableClassNames.has(className) || seenClassNames.has(className)) {
+      continue
+    }
+    seenClassNames.add(className)
+    filteredIcons.push(className)
+  }
+
+  return filteredIcons
 }
 
 function createIconFill(context, size) {
@@ -690,14 +781,18 @@ async function exportIconPack() {
   }
 }
 
-function sortPreviewIcons() {
-  const icons = [...iconSets[state.style]]
-  if (state.sortOrder === 'asc') {
-    icons.sort((a, b) => a.localeCompare(b))
-  } else {
-    icons.sort((a, b) => b.localeCompare(a))
+function updateSortButton() {
+  const hasSearchQuery = normalizeSearchTerm(state.searchQuery).length > 0
+  sortButton.disabled = hasSearchQuery
+  if (hasSearchQuery) {
+    sortButton.textContent = 'Relevance'
+    return
   }
-  state.previewIcons = icons
+  sortButton.textContent = state.sortOrder === 'asc' ? 'A → Z' : 'Z → A'
+}
+
+function sortPreviewIcons() {
+  state.previewIcons = getFilteredStyleIcons(state.style)
 }
 
 const previewTileSize = 64
@@ -707,7 +802,7 @@ let previewRenderVersion = 0
 let previewStructureKey = ''
 
 function getPreviewStructureKey() {
-  return `${state.style}:${state.sortOrder}`
+  return `${state.style}:${state.sortOrder}:${normalizeSearchTerm(state.searchQuery)}`
 }
 
 function getPreviewGradient() {
@@ -919,6 +1014,14 @@ clearBackgroundButton.addEventListener('click', async () => {
 styleSelect.addEventListener('change', (event) => {
   state.style = event.target.value
   sortPreviewIcons()
+  updateSortButton()
+  renderPreview()
+})
+
+searchInput.addEventListener('input', (event) => {
+  state.searchQuery = event.target.value
+  sortPreviewIcons()
+  updateSortButton()
   renderPreview()
 })
 
@@ -994,9 +1097,12 @@ paletteSwatches.addEventListener('click', (event) => {
 })
 
 sortButton.addEventListener('click', () => {
+  if (sortButton.disabled) {
+    return
+  }
   state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc'
-  sortButton.textContent = state.sortOrder === 'asc' ? 'A → Z' : 'Z → A'
   sortPreviewIcons()
+  updateSortButton()
   renderPreview()
 })
 
@@ -1018,6 +1124,7 @@ exportButton.addEventListener('click', () => {
 })
 
 sortPreviewIcons()
+updateSortButton()
 renderColorFields()
 renderBackgroundSamples()
 updateBackgroundSampleSelection()
