@@ -125,6 +125,7 @@ function getQuickStartBackgroundSampleGroups() {
 
 const backgroundSampleGroups = getQuickStartBackgroundSampleGroups()
 const backgroundSamplesById = new Map()
+const initialBackgroundSample = backgroundSampleGroups.find((group) => group.samples.length > 0)?.samples[0] ?? null
 
 for (const group of backgroundSampleGroups) {
   for (const sample of group.samples) {
@@ -269,10 +270,7 @@ app.innerHTML = `
 
     <section class="panel preview-panel">
       <div class="preview-header">
-        <div>
-          <p class="eyebrow">Preview</p>
-          <h2>6-column glyph grid</h2>
-        </div>
+        <p class="eyebrow">Preview</p>
         <div class="preview-actions">
           <label class="field preview-search-field">
             <span>Search icons</span>
@@ -481,7 +479,7 @@ function drawBackgroundImageCover(context, image, size) {
 }
 
 function extractPaletteFromImageData(imageData) {
-  const rawPalette = quantize(imageData, 16)
+  const rawPalette = quantize(imageData, 8)
   return rawPalette.map(([r, g, b]) => {
     const toHex = (n) => n.toString(16).padStart(2, '0')
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`
@@ -1127,7 +1125,16 @@ sortPreviewIcons()
 updateSortButton()
 renderColorFields()
 renderBackgroundSamples()
-updateBackgroundSampleSelection()
-renderPaletteSwatches()
-renderPreview()
 updateExportButton()
+
+if (initialBackgroundSample) {
+  applyBackground({
+    url: initialBackgroundSample.url,
+    name: initialBackgroundSample.id,
+    sampleId: initialBackgroundSample.id,
+  })
+} else {
+  updateBackgroundSampleSelection()
+  renderPaletteSwatches()
+  renderPreview()
+}

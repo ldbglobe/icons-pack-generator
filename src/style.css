@@ -93,12 +93,14 @@ legend {
 
 .preview-actions {
   display: flex;
+  flex: 1;
   align-items: flex-end;
   gap: 0.6rem;
 }
 
 .preview-search-field {
-  min-width: 170px;
+  flex: 1;
+  min-width: 0;
 }
 
 .preview-search-field > span {
