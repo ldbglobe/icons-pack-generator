@@ -86,9 +86,30 @@ legend {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.preview-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.preview-search-field {
+  min-width: 170px;
+}
+
+.preview-search-field > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.preview-search-field input {
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
 }
 
 .eyebrow {
