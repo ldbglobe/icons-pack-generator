@@ -675,6 +675,24 @@ function canvasToBlob(canvas, mimeType, quality = 0.92) {
   })
 }
 
+function triggerBlobDownload(blob, filename, revokeDelayMs = 0) {
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  link.style.display = 'none'
+  document.body.append(link)
+  link.click()
+  link.remove()
+
+  if (revokeDelayMs > 0) {
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), revokeDelayMs)
+    return
+  }
+
+  URL.revokeObjectURL(objectUrl)
+}
+
 async function exportCanvasAsGif(canvas) {
   const context = canvas.getContext('2d')
   const { data } = context.getImageData(0, 0, canvas.width, canvas.height)
@@ -776,12 +794,7 @@ async function exportIconPack() {
     }
 
     const archiveBlob = await zip.generateAsync({ type: 'blob' })
-    const archiveUrl = URL.createObjectURL(archiveBlob)
-    const link = document.createElement('a')
-    link.href = archiveUrl
-    link.download = `${zipBaseName}-${state.exportFormat}-${state.exportSize}.zip`
-    link.click()
-    URL.revokeObjectURL(archiveUrl)
+    triggerBlobDownload(archiveBlob, `${zipBaseName}-${state.exportFormat}-${state.exportSize}.zip`)
   } catch (error) {
     console.error(error)
     const message = error instanceof Error ? error.message : 'Unknown error'
@@ -791,6 +804,29 @@ async function exportIconPack() {
     state.exportProcessedCount = 0
     state.exportTotalCount = 0
     updateExportButton()
+  }
+}
+
+async function downloadPreviewIcon(iconClassName) {
+  const glyphMap = getCachedGlyphMap()
+  const glyph = glyphMap.get(iconClassName) ?? ''
+
+  if (!glyph) {
+    return
+  }
+
+  try {
+    const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    const blob = await renderIconBlob({
+      glyph,
+      size: state.exportSize,
+      format: state.exportFormat,
+      backgroundImage,
+    })
+    const iconName = stripFaPrefix(iconClassName)
+    triggerBlobDownload(blob, `${iconName}.${state.exportFormat}`, objectUrlRevokeDelayMs)
+  } catch (error) {
+    console.error(`Failed to export icon "${iconClassName}":`, error)
   }
 }
 
@@ -895,6 +931,9 @@ async function renderPreview() {
       tile.tabIndex = 0
       tile.dataset.previewIcon = iconClassName
       tile.setAttribute('aria-label', `Download ${iconName}`)
+      tile.addEventListener('click', () => {
+        downloadPreviewIcon(iconClassName)
+      })
 
       const glyphElement = document.createElement('span')
       glyphElement.className = 'preview-glyph'
@@ -1142,39 +1181,6 @@ exportSizeSelect.addEventListener('change', (event) => {
 
 exportButton.addEventListener('click', () => {
   exportIconPack()
-})
-
-previewGrid.addEventListener('click', async (event) => {
-  const tile = event.target.closest('[data-preview-icon]')
-  if (!tile) {
-    return
-  }
-
-  const iconClassName = tile.dataset.previewIcon
-  const glyphMap = getCachedGlyphMap()
-  const glyph = glyphMap.get(iconClassName) ?? ''
-
-  if (!glyph) {
-    return
-  }
-
-  try {
-    const blob = await renderIconBlob({
-      glyph,
-      size: state.exportSize,
-      format: state.exportFormat,
-      backgroundImage: state.backgroundUrl,
-    })
-    const iconName = stripFaPrefix(iconClassName)
-    const link = document.createElement('a')
-    const objectUrl = URL.createObjectURL(blob)
-    link.href = objectUrl
-    link.download = `${iconName}.${state.exportFormat}`
-    link.click()
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), objectUrlRevokeDelayMs)
-  } catch (error) {
-    console.error(`Failed to export icon "${iconClassName}":`, error)
-  }
 })
 
 sortPreviewIcons()
