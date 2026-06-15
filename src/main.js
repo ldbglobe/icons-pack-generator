@@ -499,8 +499,6 @@ async function sampleBackgroundImageData(imageUrl) {
 
 function getRecommendedGlyphColor(imageData) {
   const colorBuckets = new Map()
-  let visiblePixelCount = 0
-  let whitePixelCount = 0
 
   for (let index = 0; index < imageData.length; index += 4) {
     const alpha = imageData[index + 3]
@@ -513,13 +511,6 @@ function getRecommendedGlyphColor(imageData) {
     const g = imageData[index + 1]
     const b = imageData[index + 2]
 
-    visiblePixelCount += 1
-
-    if (r >= 245 && g >= 245 && b >= 245) {
-      whitePixelCount += 1
-      continue
-    }
-
     const bucketKey = [r, g, b].map((value) => Math.min(Math.round(value / 16) * 16, 255)).join(',')
     const bucket = colorBuckets.get(bucketKey) ?? { count: 0, rTotal: 0, gTotal: 0, bTotal: 0 }
 
@@ -530,12 +521,7 @@ function getRecommendedGlyphColor(imageData) {
     colorBuckets.set(bucketKey, bucket)
   }
 
-  if (visiblePixelCount === 0) {
-    return defaultColors[0]
-  }
-
-  const whiteRatio = whitePixelCount / visiblePixelCount
-  if (whiteRatio < 0.5 || colorBuckets.size === 0) {
+  if (colorBuckets.size === 0) {
     return defaultColors[0]
   }
 
@@ -544,29 +530,39 @@ function getRecommendedGlyphColor(imageData) {
     return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
   }
 
-  let dominantBucket = null
+  // ITU-R BT.709 coefficients for WCAG relative luminance
+  const getLuminance = (r, g, b) => 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
 
-  for (const bucket of colorBuckets.values()) {
+  const getContrastRatio = (lum1, lum2) => {
+    const lighter = Math.max(lum1, lum2)
+    const darker = Math.min(lum1, lum2)
+    return (lighter + 0.05) / (darker + 0.05)
+  }
+
+  // Sort buckets by pixel count descending; the most frequent color represents the background
+  const sortedBuckets = [...colorBuckets.values()].sort((a, b) => b.count - a.count)
+
+  const bgBucket = sortedBuckets[0]
+  const bgAvgR = bgBucket.rTotal / bgBucket.count
+  const bgAvgG = bgBucket.gTotal / bgBucket.count
+  const bgAvgB = bgBucket.bTotal / bgBucket.count
+  const bgLuminance = getLuminance(bgAvgR, bgAvgG, bgAvgB)
+
+  // Find the most frequent color that has sufficient contrast with the dominant background color
+  const toHex = (value) => Math.round(value).toString(16).padStart(2, '0')
+  for (const bucket of sortedBuckets.slice(1)) {
     const avgR = bucket.rTotal / bucket.count
     const avgG = bucket.gTotal / bucket.count
     const avgB = bucket.bTotal / bucket.count
-    // ITU-R BT.709 coefficients for WCAG relative luminance
-    const luminance = 0.2126 * toLinear(avgR) + 0.7152 * toLinear(avgG) + 0.0722 * toLinear(avgB)
-    const contrastWithWhite = 1.05 / (luminance + 0.05)
-    if (contrastWithWhite < 3) {
-      continue
-    }
-    if (!dominantBucket || bucket.count > dominantBucket.count) {
-      dominantBucket = bucket
+    if (getContrastRatio(bgLuminance, getLuminance(avgR, avgG, avgB)) >= 3) {
+      return `#${toHex(avgR)}${toHex(avgG)}${toHex(avgB)}`
     }
   }
 
-  if (!dominantBucket) {
-    return defaultColors[0]
-  }
-
-  const toHex = (value) => Math.round(value).toString(16).padStart(2, '0')
-  return `#${toHex(dominantBucket.rTotal / dominantBucket.count)}${toHex(dominantBucket.gTotal / dominantBucket.count)}${toHex(dominantBucket.bTotal / dominantBucket.count)}`
+  // No contrasting color found — fall back to white or black.
+  // 0.179 is the luminance crossover where black and white provide equal WCAG contrast:
+  // (L + 0.05) / 0.05 = 1.05 / (L + 0.05) → L ≈ 0.179
+  return bgLuminance > 0.179 ? '#000000' : defaultColors[0]
 }
 
 async function analyzeBackgroundImage(imageUrl) {
