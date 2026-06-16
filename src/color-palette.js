@@ -8,6 +8,19 @@
 
 export const DEFAULT_ALPHA_THRESHOLD = 32
 export const DEFAULT_PALETTE_SIZE = 10
+export const PREVIEW_TILE_LIGHT_LUMINANCE_THRESHOLD = 0.8
+
+const defaultPreviewTileBackdrop = {
+  backgroundColor: '#ffffff',
+  motifBase: '#d7d7d7',
+  motifAccent: '#efefef',
+}
+
+const brightPreviewTileBackdrop = {
+  backgroundColor: '#000000',
+  motifBase: '#3f3f46',
+  motifAccent: '#18181b',
+}
 
 /**
  * Convert a linear sRGB channel value (0–255) to its linearised counterpart.
@@ -67,6 +80,39 @@ export function hexToRgb(hex) {
 export function rgbToHex(r, g, b) {
   const toHex = (n) => n.toString(16).padStart(2, '0')
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+/**
+ * Choose the preview tile backdrop theme that sits behind transparent
+ * background-image pixels.
+ *
+ * Very dark dominant colours get a white backdrop; very bright dominant colours
+ * get a black backdrop. Mid-range colours keep the default light checkerboard.
+ *
+ * @param {string | null} dominantColor
+ * @param {number} [lightThreshold]
+ * @returns {{
+ *   backgroundColor: string,
+ *   motifBase: string,
+ *   motifAccent: string
+ * }}
+ */
+export function getPreviewTileBackdrop(
+  dominantColor,
+  lightThreshold = PREVIEW_TILE_LIGHT_LUMINANCE_THRESHOLD,
+) {
+  if (!dominantColor) {
+    return defaultPreviewTileBackdrop
+  }
+
+  const [red, green, blue] = hexToRgb(dominantColor)
+  const luminance = getLuminance(red, green, blue)
+
+  if (luminance >= lightThreshold) {
+    return brightPreviewTileBackdrop
+  }
+
+  return defaultPreviewTileBackdrop
 }
 
 /**
