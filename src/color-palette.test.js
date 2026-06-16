@@ -7,6 +7,7 @@ import {
   rgbToHex,
   collectOpaquePixels,
   extractColorPalette,
+  getPreviewTileBackdrop,
   DEFAULT_ALPHA_THRESHOLD,
 } from './color-palette.js'
 
@@ -358,5 +359,39 @@ describe('extractColorPalette', () => {
     const resultStrict = extractColorPalette(imageData, 10, mockQuantize, 64)
     expect(resultStrict.palette).not.toContain('#ff0000')
     expect(resultStrict.palette).toContain('#00ff00')
+  })
+})
+
+describe('getPreviewTileBackdrop', () => {
+  it('uses the default light checkerboard when no dominant color is available', () => {
+    expect(getPreviewTileBackdrop(null)).toEqual({
+      backgroundColor: '#ffffff',
+      motifBase: '#d7d7d7',
+      motifAccent: '#efefef',
+    })
+  })
+
+  it('keeps a white tile back for very dark dominant colors', () => {
+    expect(getPreviewTileBackdrop('#050505')).toEqual({
+      backgroundColor: '#ffffff',
+      motifBase: '#d7d7d7',
+      motifAccent: '#efefef',
+    })
+  })
+
+  it('switches to a black tile back for very bright dominant colors', () => {
+    expect(getPreviewTileBackdrop('#fafafa')).toEqual({
+      backgroundColor: '#000000',
+      motifBase: '#3f3f46',
+      motifAccent: '#18181b',
+    })
+  })
+
+  it('keeps the default light checkerboard for mid-range dominant colors', () => {
+    expect(getPreviewTileBackdrop('#7f7f7f')).toEqual({
+      backgroundColor: '#ffffff',
+      motifBase: '#d7d7d7',
+      motifAccent: '#efefef',
+    })
   })
 })

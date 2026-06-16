@@ -5,7 +5,11 @@ import iconsIndex from './icons-index.json'
 import JSZip from 'jszip'
 import Fuse from 'fuse.js'
 import { GIFEncoder, applyPalette } from 'gifenc'
-import { extractColorPalette, DEFAULT_PALETTE_SIZE } from './color-palette.js'
+import {
+  extractColorPalette,
+  DEFAULT_PALETTE_SIZE,
+  getPreviewTileBackdrop,
+} from './color-palette.js'
 import { quantizeRgbaPixels } from './quantization.js'
 
 const defaultColors = ['#ffffff']
@@ -834,6 +838,7 @@ function updatePreviewStyles() {
   const x = 50 + state.offsetX * 0.5
   const y = 50 + state.offsetY * 0.5
   const iconSizePixels = Math.max((getPreviewTileSize() * state.size) / 100, 0)
+  const previewTileBackdrop = getPreviewTileBackdrop(state.dominantColor)
 
   previewGrid.style.setProperty('--preview-icon-font-family', family)
   previewGrid.style.setProperty('--preview-icon-font-weight', weight)
@@ -843,6 +848,9 @@ function updatePreviewStyles() {
   previewGrid.style.setProperty('--preview-icon-color', state.colors[0] ?? '#ffffff')
   previewGrid.style.setProperty('--preview-icon-gradient', getPreviewGradient())
   previewGrid.style.setProperty('--preview-background-image', hasBackground ? `url("${state.backgroundUrl}")` : 'none')
+  previewGrid.style.setProperty('--preview-tile-back-color', previewTileBackdrop.backgroundColor)
+  previewGrid.style.setProperty('--preview-transparent-base', previewTileBackdrop.motifBase)
+  previewGrid.style.setProperty('--preview-transparent-accent', previewTileBackdrop.motifAccent)
   previewGrid.classList.toggle('preview-grid--with-background', hasBackground)
   previewGrid.classList.toggle('preview-grid--transparent', !hasBackground)
   previewGrid.classList.toggle('preview-grid--gradient', hasGradient)

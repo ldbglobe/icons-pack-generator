@@ -398,6 +398,9 @@ h2 {
   --preview-icon-color: #ffffff;
   --preview-icon-gradient: none;
   --preview-background-image: none;
+  --preview-tile-back-color: #ffffff;
+  --preview-transparent-base: #d7d7d7;
+  --preview-transparent-accent: #efefef;
 }
 
 .preview-card {
@@ -416,13 +419,28 @@ h2 {
   aspect-ratio: 1 / 1;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  background-size: cover;
-  background-position: center;
+  background-color: var(--preview-tile-back-color);
+  background-image:
+    linear-gradient(45deg, var(--preview-transparent-base) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--preview-transparent-base) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--preview-transparent-accent) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--preview-transparent-accent) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-repeat: repeat;
   cursor: pointer;
 }
 
 .preview-grid--with-background .preview-tile {
-  background-image: var(--preview-background-image);
+  background-image:
+    var(--preview-background-image),
+    linear-gradient(45deg, var(--preview-transparent-base) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--preview-transparent-base) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--preview-transparent-accent) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--preview-transparent-accent) 75%);
+  background-size: cover, 16px 16px, 16px 16px, 16px 16px, 16px 16px;
+  background-position: center, 0 0, 0 8px, 8px -8px, -8px 0;
+  background-repeat: no-repeat, repeat, repeat, repeat, repeat;
 }
 
 .preview-tile::after {
@@ -434,14 +452,11 @@ h2 {
 }
 
 .preview-grid--transparent .preview-tile {
-  background-color: #ffffff;
   background-image:
-    linear-gradient(45deg, var(--transparent-base, #d7d7d7) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--transparent-base, #d7d7d7) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--transparent-accent, #efefef) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--transparent-accent, #efefef) 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    linear-gradient(45deg, var(--preview-transparent-base) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--preview-transparent-base) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--preview-transparent-accent) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--preview-transparent-accent) 75%);
 }
 
 .preview-grid--transparent .preview-tile::after {
