@@ -147,6 +147,8 @@ const state = {
   size: 40,
   colors: [...defaultColors],
   palette: [],
+  dominantColor: null,
+  recommendedGlyphColor: null,
   exportFormat: 'png',
   exportSize: defaultExportSize,
   isExporting: false,
@@ -494,10 +496,11 @@ async function sampleBackgroundImageData(imageUrl) {
 
 async function analyzeBackgroundImage(imageUrl) {
   const imageData = await sampleBackgroundImageData(imageUrl)
-  const { palette, highestContrastColor } = extractColorPalette(imageData, DEFAULT_PALETTE_SIZE, quantize)
+  const { palette, dominantColor, highestContrastColor } = extractColorPalette(imageData, DEFAULT_PALETTE_SIZE, quantize)
 
   return {
     palette,
+    dominantColor,
     recommendedGlyphColor: highestContrastColor,
   }
 }
@@ -507,6 +510,9 @@ function renderPaletteSwatches() {
     paletteSwatches.innerHTML = ''
     return
   }
+
+  const showAutoColors = state.dominantColor || state.recommendedGlyphColor
+
   paletteSwatches.innerHTML = `
     <p class="hint">Background palette — click to apply color</p>
     <div class="palette-grid">
@@ -525,6 +531,36 @@ function renderPaletteSwatches() {
         )
         .join('')}
     </div>
+    ${showAutoColors ? `
+      <div class="auto-color-swatches">
+        ${state.dominantColor ? `
+          <div class="auto-color-item">
+            <button
+              type="button"
+              class="palette-swatch"
+              data-palette-color="${state.dominantColor}"
+              style="background-color: ${state.dominantColor}"
+              title="${state.dominantColor}"
+              aria-label="Apply most present background color ${state.dominantColor}"
+            ></button>
+            <span class="auto-color-label">Background</span>
+          </div>
+        ` : ''}
+        ${state.recommendedGlyphColor ? `
+          <div class="auto-color-item">
+            <button
+              type="button"
+              class="palette-swatch"
+              data-palette-color="${state.recommendedGlyphColor}"
+              style="background-color: ${state.recommendedGlyphColor}"
+              title="${state.recommendedGlyphColor}"
+              aria-label="Apply most contrasting color ${state.recommendedGlyphColor}"
+            ></button>
+            <span class="auto-color-label">Contrast</span>
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
   `
 }
 
@@ -915,6 +951,8 @@ async function applyBackground({ url, name = '', sampleId = '', isBlobUrl = fals
   state.backgroundSampleId = sampleId
   state.backgroundObjectUrl = isBlobUrl ? url : ''
   state.palette = []
+  state.dominantColor = null
+  state.recommendedGlyphColor = null
 
   if (!isBlobUrl) {
     backgroundInput.value = ''
@@ -929,9 +967,11 @@ async function applyBackground({ url, name = '', sampleId = '', isBlobUrl = fals
   }
 
   try {
-    const { palette, recommendedGlyphColor } = await analyzeBackgroundImage(url)
+    const { palette, dominantColor, recommendedGlyphColor } = await analyzeBackgroundImage(url)
     if (state.backgroundUrl === url) {
       state.palette = palette
+      state.dominantColor = dominantColor
+      state.recommendedGlyphColor = recommendedGlyphColor
       state.colors = [recommendedGlyphColor]
       renderColorFields()
       renderPaletteSwatches()
