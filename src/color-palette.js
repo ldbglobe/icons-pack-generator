@@ -7,7 +7,7 @@
  */
 
 export const DEFAULT_ALPHA_THRESHOLD = 32
-export const DEFAULT_PALETTE_SIZE = 3
+export const DEFAULT_PALETTE_SIZE = 10
 
 /**
  * Convert a linear sRGB channel value (0–255) to its linearised counterpart.
