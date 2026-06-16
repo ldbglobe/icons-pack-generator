@@ -532,8 +532,6 @@ function renderSwatchRow(colors) {
 }
 
 function renderPaletteSwatches() {
-  const showAutoColors = state.dominantColor || state.recommendedGlyphColor
-
   paletteSwatches.innerHTML = `
     <div class="color-preset-toolbar">
       <span class="preset-toolbar-label">Black &amp; White</span>
@@ -566,36 +564,6 @@ function renderPaletteSwatches() {
           ${renderSwatchRow(state.palette)}
         </div>
       </div>
-      ${showAutoColors ? `
-        <div class="auto-color-swatches">
-          ${state.dominantColor ? `
-            <div class="auto-color-item">
-              <button
-                type="button"
-                class="palette-swatch"
-                data-palette-color="${state.dominantColor}"
-                style="background-color: ${state.dominantColor}"
-                title="${state.dominantColor}"
-                aria-label="Apply most present background color ${state.dominantColor}"
-              ></button>
-              <span class="auto-color-label">Background</span>
-            </div>
-          ` : ''}
-          ${state.recommendedGlyphColor ? `
-            <div class="auto-color-item">
-              <button
-                type="button"
-                class="palette-swatch"
-                data-palette-color="${state.recommendedGlyphColor}"
-                style="background-color: ${state.recommendedGlyphColor}"
-                title="${state.recommendedGlyphColor}"
-                aria-label="Apply most contrasting color ${state.recommendedGlyphColor}"
-              ></button>
-              <span class="auto-color-label">Contrast</span>
-            </div>
-          ` : ''}
-        </div>
-      ` : ''}
     ` : ''}
   `
 }
