@@ -315,7 +315,7 @@ describe('extractColorPalette', () => {
     // Use a near-white color (e.g. #f5f5f5) that is not quite #ffffff but
     // has luminance ≥ NEAR_WHITE_LUMINANCE_THRESHOLD.
     const imageData = makeImageData([[50, 50, 50, 255]])
-    const nearWhiteColor = [245, 245, 245]  // luminance well above 0.9
+    const nearWhiteColor = [245, 245, 245]  // luminance well above 0.8
     const quantizeStub = () => [
       [50, 50, 50],       // dark grey — dominant
       nearWhiteColor,     // near-white — should be snapped
@@ -330,7 +330,7 @@ describe('extractColorPalette', () => {
   it('does not snap the highest-contrast color when it is below the near-white threshold', () => {
     // Use a color with luminance below NEAR_WHITE_LUMINANCE_THRESHOLD — no snapping.
     const imageData = makeImageData([[50, 50, 50, 255]])
-    const lightColor = [200, 200, 200]  // luminance ≈ 0.587 — below 0.9
+    const lightColor = [200, 200, 200]  // luminance ≈ 0.587 — below 0.8
     const quantizeStub = () => [
       [50, 50, 50],
       lightColor,

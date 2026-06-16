@@ -10,7 +10,7 @@ export const DEFAULT_ALPHA_THRESHOLD = 32
 export const DEFAULT_PALETTE_SIZE = 8
 export const PREVIEW_TILE_LIGHT_LUMINANCE_THRESHOLD = 0.8
 /** Luminance threshold above which a colour is snapped to pure white (#ffffff). */
-export const NEAR_WHITE_LUMINANCE_THRESHOLD = 0.9
+export const NEAR_WHITE_LUMINANCE_THRESHOLD = 0.8
 
 const defaultPreviewTileBackdrop = {
   backgroundColor: '#ffffff',
