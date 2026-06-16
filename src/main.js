@@ -15,6 +15,10 @@ import { quantizeRgbaPixels } from './quantization.js'
 const defaultColors = ['#ffffff']
 const defaultExportSize = 128
 const objectUrlRevokeDelayMs = 1000
+
+const VIBRANT_COLORS = ['#ff0000', '#ff8c00', '#ffd700', '#00c800', '#00bcd4', '#2979ff', '#9c27b0', '#e91e63']
+const PASTEL_COLORS  = ['#ffb3b3', '#ffd9b3', '#fff4b3', '#b3ffb3', '#b3f0ff', '#b3c8ff', '#d9b3ff', '#ffb3e6']
+const MORANDI_COLORS = ['#b5a99a', '#9aaa9f', '#8fa3b1', '#b1978f', '#a8b19a', '#b09fac', '#c4b49b', '#8e9999']
 const quickStartBackgroundModules = import.meta.glob('../assets/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
   eager: true,
   import: 'default',
@@ -510,61 +514,88 @@ async function analyzeBackgroundImage(imageUrl) {
   }
 }
 
-function renderPaletteSwatches() {
-  if (state.palette.length === 0) {
-    paletteSwatches.innerHTML = ''
-    return
-  }
+function renderSwatchRow(colors) {
+  return colors
+    .map(
+      (color) => `
+    <button
+      type="button"
+      class="palette-swatch"
+      data-palette-color="${color}"
+      style="background-color: ${color}"
+      title="${color}"
+      aria-label="Apply color ${color}"
+    ></button>
+  `,
+    )
+    .join('')
+}
 
+function renderPaletteSwatches() {
   const showAutoColors = state.dominantColor || state.recommendedGlyphColor
 
   paletteSwatches.innerHTML = `
-    <p class="hint">Background palette — click to apply color</p>
-    <div class="palette-grid">
-      ${state.palette
-        .map(
-          (color) => `
-        <button
-          type="button"
-          class="palette-swatch"
-          data-palette-color="${color}"
-          style="background-color: ${color}"
-          title="${color}"
-          aria-label="Apply palette color ${color}"
-        ></button>
-      `,
-        )
-        .join('')}
-    </div>
-    ${showAutoColors ? `
-      <div class="auto-color-swatches">
-        ${state.dominantColor ? `
-          <div class="auto-color-item">
-            <button
-              type="button"
-              class="palette-swatch"
-              data-palette-color="${state.dominantColor}"
-              style="background-color: ${state.dominantColor}"
-              title="${state.dominantColor}"
-              aria-label="Apply most present background color ${state.dominantColor}"
-            ></button>
-            <span class="auto-color-label">Background</span>
-          </div>
-        ` : ''}
-        ${state.recommendedGlyphColor ? `
-          <div class="auto-color-item">
-            <button
-              type="button"
-              class="palette-swatch"
-              data-palette-color="${state.recommendedGlyphColor}"
-              style="background-color: ${state.recommendedGlyphColor}"
-              title="${state.recommendedGlyphColor}"
-              aria-label="Apply most contrasting color ${state.recommendedGlyphColor}"
-            ></button>
-            <span class="auto-color-label">Contrast</span>
-          </div>
-        ` : ''}
+    <div class="color-preset-toolbar">
+      <span class="preset-toolbar-label">Black &amp; White</span>
+      <div class="palette-grid">
+        ${renderSwatchRow(['#000000', '#ffffff'])}
       </div>
+    </div>
+    <div class="color-preset-toolbar">
+      <span class="preset-toolbar-label">Vibrant</span>
+      <div class="palette-grid">
+        ${renderSwatchRow(VIBRANT_COLORS)}
+      </div>
+    </div>
+    <div class="color-preset-toolbar">
+      <span class="preset-toolbar-label">Pastel</span>
+      <div class="palette-grid">
+        ${renderSwatchRow(PASTEL_COLORS)}
+      </div>
+    </div>
+    <div class="color-preset-toolbar">
+      <span class="preset-toolbar-label">Morandi</span>
+      <div class="palette-grid">
+        ${renderSwatchRow(MORANDI_COLORS)}
+      </div>
+    </div>
+    ${state.palette.length > 0 ? `
+      <div class="color-preset-toolbar">
+        <span class="preset-toolbar-label">Background palette</span>
+        <div class="palette-grid">
+          ${renderSwatchRow(state.palette)}
+        </div>
+      </div>
+      ${showAutoColors ? `
+        <div class="auto-color-swatches">
+          ${state.dominantColor ? `
+            <div class="auto-color-item">
+              <button
+                type="button"
+                class="palette-swatch"
+                data-palette-color="${state.dominantColor}"
+                style="background-color: ${state.dominantColor}"
+                title="${state.dominantColor}"
+                aria-label="Apply most present background color ${state.dominantColor}"
+              ></button>
+              <span class="auto-color-label">Background</span>
+            </div>
+          ` : ''}
+          ${state.recommendedGlyphColor ? `
+            <div class="auto-color-item">
+              <button
+                type="button"
+                class="palette-swatch"
+                data-palette-color="${state.recommendedGlyphColor}"
+                style="background-color: ${state.recommendedGlyphColor}"
+                title="${state.recommendedGlyphColor}"
+                aria-label="Apply most contrasting color ${state.recommendedGlyphColor}"
+              ></button>
+              <span class="auto-color-label">Contrast</span>
+            </div>
+          ` : ''}
+        </div>
+      ` : ''}
     ` : ''}
   `
 }
