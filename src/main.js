@@ -10,6 +10,10 @@ import {
   DEFAULT_PALETTE_SIZE,
   getPreviewTileBackdrop,
 } from './color-palette.js'
+import {
+  buildSingleIconDownloadFilename,
+  toSafeFilenamePart,
+} from './download-filename.js'
 import { quantizeRgbaPixels } from './quantization.js'
 
 const defaultColors = ['#ffffff']
@@ -115,9 +119,12 @@ function getQuickStartBackgroundSampleGroups() {
   const samples = Object.entries(quickStartBackgroundModules)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([filePath, url], index) => {
-      const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? `background-${index + 1}`
+      const fallbackFileName = `background-${index + 1}`
+      const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? fallbackFileName
+      const safeFileName = toSafeFilenamePart(fileName)
       return {
-        id: `asset-${toSafeFilenamePart(fileName) || `background-${index + 1}`}`,
+        id: `asset-${safeFileName}`,
+        name: safeFileName,
         label: formatBackgroundSampleLabel(filePath),
         url,
       }
@@ -384,13 +391,6 @@ function getGlyphMap() {
   }
 
   return glyphMap
-}
-
-function toSafeFilenamePart(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
 
 function stripFaPrefix(iconClass) {
@@ -773,7 +773,16 @@ async function downloadPreviewIcon(iconClassName) {
       backgroundImage,
     })
     const iconName = stripFaPrefix(iconClassName)
-    triggerBlobDownload(blob, `${iconName}.${state.exportFormat}`, objectUrlRevokeDelayMs)
+    triggerBlobDownload(
+      blob,
+      buildSingleIconDownloadFilename({
+        backgroundName: state.backgroundName,
+        iconName,
+        colors: state.colors,
+        format: state.exportFormat,
+      }),
+      objectUrlRevokeDelayMs,
+    )
   } catch (error) {
     console.error(`Failed to export icon "${iconClassName}":`, error)
   }
@@ -1019,7 +1028,7 @@ backgroundSamples.addEventListener('click', async (event) => {
 
   await applyBackground({
     url: sample.url,
-    name: sample.id,
+    name: sample.name,
     sampleId: sample.id,
   })
 })
