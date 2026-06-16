@@ -137,10 +137,8 @@ export function extractColorPalette(imageData, numColors, quantizeFn, alphaThres
   const [domR, domG, domB] = hexToRgb(dominantColor)
   const dominantLuminance = getLuminance(domR, domG, domB)
 
-  // Candidates: every colour in the palette plus the two absolute anchors.
-  // Including black and white ensures we never end up recommending a colour
-  // that closely matches the background (e.g. white-on-white).
-  const candidates = [...palette, '#000000', '#ffffff']
+  // Candidates: every colour in the palette
+  const candidates = [...palette]
   let bestColor = '#000000'
   let bestContrast = 0
 
