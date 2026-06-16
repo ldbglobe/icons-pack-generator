@@ -7,8 +7,10 @@
  */
 
 export const DEFAULT_ALPHA_THRESHOLD = 32
-export const DEFAULT_PALETTE_SIZE = 10
+export const DEFAULT_PALETTE_SIZE = 8
 export const PREVIEW_TILE_LIGHT_LUMINANCE_THRESHOLD = 0.8
+/** Luminance threshold above which a colour is snapped to pure white (#ffffff). */
+export const NEAR_WHITE_LUMINANCE_THRESHOLD = 0.9
 
 const defaultPreviewTileBackdrop = {
   backgroundColor: '#ffffff',
@@ -148,6 +150,8 @@ export function collectOpaquePixels(imageData, alphaThreshold = DEFAULT_ALPHA_TH
  *   Uint8Array and the requested palette size; returns an array of [r, g, b] tuples
  *   ordered from most to least dominant.
  * @param {number} [alphaThreshold] - Minimum alpha to consider a pixel opaque
+ * @param {number} [nearWhiteThreshold] - Luminance threshold above which the
+ *   highest-contrast colour is snapped to pure white (#ffffff)
  *
  * @returns {{
  *   palette: string[],
@@ -159,7 +163,13 @@ export function collectOpaquePixels(imageData, alphaThreshold = DEFAULT_ALPHA_TH
  *   - `highestContrastColor` – The colour from the extracted palette that best
  *                              contrasts with `dominantColor`.
  */
-export function extractColorPalette(imageData, numColors, quantizeFn, alphaThreshold = DEFAULT_ALPHA_THRESHOLD) {
+export function extractColorPalette(
+  imageData,
+  numColors,
+  quantizeFn,
+  alphaThreshold = DEFAULT_ALPHA_THRESHOLD,
+  nearWhiteThreshold = NEAR_WHITE_LUMINANCE_THRESHOLD,
+) {
   const opaqueData = collectOpaquePixels(imageData, alphaThreshold)
 
   if (opaqueData.length === 0) {
@@ -194,6 +204,13 @@ export function extractColorPalette(imageData, numColors, quantizeFn, alphaThres
       bestContrast = contrast
       bestColor = color
     }
+  }
+
+  // Snap near-white to pure white: if the best contrasting colour has
+  // luminance ≥ nearWhiteThreshold (≥ 90% of maximum), use #ffffff.
+  const [bR, bG, bB] = hexToRgb(bestColor)
+  if (getLuminance(bR, bG, bB) >= nearWhiteThreshold) {
+    bestColor = '#ffffff'
   }
 
   return { palette, dominantColor, highestContrastColor: bestColor }

@@ -9,6 +9,7 @@ import {
   extractColorPalette,
   getPreviewTileBackdrop,
   DEFAULT_ALPHA_THRESHOLD,
+  NEAR_WHITE_LUMINANCE_THRESHOLD,
 } from './color-palette.js'
 
 // ---------------------------------------------------------------------------
@@ -301,13 +302,42 @@ describe('extractColorPalette', () => {
     const imageData = makeImageData([[100, 100, 100, 255]])
     const quantizeStub = () => [
       [100, 100, 100],   // medium grey — dominant
-      [255, 255, 0],     // bright yellow (high lum)
+      [255, 255, 0],     // bright yellow (high lum, ≥ nearWhiteThreshold → snapped to #ffffff)
       [10, 10, 10],      // near-black (very low lum)
     ]
     const result = extractColorPalette(imageData, 10, quantizeStub)
-    // Near-black vs medium grey:  contrast ≈ (0.127+0.05)/(0.003+0.05) ≈ 3.3
-    // Bright yellow vs medium grey: contrast ≈ (0.928+0.05)/(0.127+0.05) ≈ 5.5  ← wins
-    expect(result.highestContrastColor).toBe('#ffff00')
+    // Bright yellow wins the contrast check but its luminance ≥ NEAR_WHITE_LUMINANCE_THRESHOLD,
+    // so it is snapped to pure white.
+    expect(result.highestContrastColor).toBe('#ffffff')
+  })
+
+  it('snaps the highest-contrast color to pure white when its luminance is near white', () => {
+    // Use a near-white color (e.g. #f5f5f5) that is not quite #ffffff but
+    // has luminance ≥ NEAR_WHITE_LUMINANCE_THRESHOLD.
+    const imageData = makeImageData([[50, 50, 50, 255]])
+    const nearWhiteColor = [245, 245, 245]  // luminance well above 0.9
+    const quantizeStub = () => [
+      [50, 50, 50],       // dark grey — dominant
+      nearWhiteColor,     // near-white — should be snapped
+    ]
+    const result = extractColorPalette(imageData, 10, quantizeStub)
+    // Near-white has higher contrast vs dark grey than dark grey itself.
+    // Because its luminance ≥ NEAR_WHITE_LUMINANCE_THRESHOLD it must be snapped to #ffffff.
+    expect(getLuminance(...nearWhiteColor)).toBeGreaterThanOrEqual(NEAR_WHITE_LUMINANCE_THRESHOLD)
+    expect(result.highestContrastColor).toBe('#ffffff')
+  })
+
+  it('does not snap the highest-contrast color when it is below the near-white threshold', () => {
+    // Use a color with luminance below NEAR_WHITE_LUMINANCE_THRESHOLD — no snapping.
+    const imageData = makeImageData([[50, 50, 50, 255]])
+    const lightColor = [200, 200, 200]  // luminance ≈ 0.587 — below 0.9
+    const quantizeStub = () => [
+      [50, 50, 50],
+      lightColor,
+    ]
+    const result = extractColorPalette(imageData, 10, quantizeStub)
+    expect(getLuminance(...lightColor)).toBeLessThan(NEAR_WHITE_LUMINANCE_THRESHOLD)
+    expect(result.highestContrastColor).toBe('#c8c8c8')
   })
 
   it('returns the highest-contrast color from the palette when it exists', () => {
