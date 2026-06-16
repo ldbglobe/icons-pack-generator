@@ -311,8 +311,8 @@ describe('extractColorPalette', () => {
     expect(result.highestContrastColor).toBe('#ffffff')
   })
 
-  it('snaps the highest-contrast colour to pure white when its luminance is near white', () => {
-    // Use a near-white colour (e.g. #f5f5f5) that is not quite #ffffff but
+  it('snaps the highest-contrast color to pure white when its luminance is near white', () => {
+    // Use a near-white color (e.g. #f5f5f5) that is not quite #ffffff but
     // has luminance ≥ NEAR_WHITE_LUMINANCE_THRESHOLD.
     const imageData = makeImageData([[50, 50, 50, 255]])
     const nearWhiteColor = [245, 245, 245]  // luminance well above 0.9
@@ -327,8 +327,8 @@ describe('extractColorPalette', () => {
     expect(result.highestContrastColor).toBe('#ffffff')
   })
 
-  it('does not snap the highest-contrast colour when it is below the near-white threshold', () => {
-    // Use a colour with luminance below NEAR_WHITE_LUMINANCE_THRESHOLD — no snapping.
+  it('does not snap the highest-contrast color when it is below the near-white threshold', () => {
+    // Use a color with luminance below NEAR_WHITE_LUMINANCE_THRESHOLD — no snapping.
     const imageData = makeImageData([[50, 50, 50, 255]])
     const lightColor = [200, 200, 200]  // luminance ≈ 0.587 — below 0.9
     const quantizeStub = () => [

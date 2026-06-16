@@ -206,8 +206,8 @@ export function extractColorPalette(
     }
   }
 
-  // Snap near-white to pure white: if the best contrasting colour is within
-  // 10% of white's luminance (i.e. luminance ≥ nearWhiteThreshold), use #ffffff.
+  // Snap near-white to pure white: if the best contrasting colour has
+  // luminance ≥ nearWhiteThreshold (≥ 90% of maximum), use #ffffff.
   const [bR, bG, bB] = hexToRgb(bestColor)
   if (getLuminance(bR, bG, bB) >= nearWhiteThreshold) {
     bestColor = '#ffffff'
