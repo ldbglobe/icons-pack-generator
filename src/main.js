@@ -119,8 +119,8 @@ function getQuickStartBackgroundSampleGroups() {
   const samples = Object.entries(quickStartBackgroundModules)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([filePath, url], index) => {
-      const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? `background-${index + 1}`
-      const safeFileName = toSafeFilenamePart(fileName) || `background-${index + 1}`
+      const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '')
+      const safeFileName = toSafeFilenamePart(fileName || `background-${index + 1}`)
       return {
         id: `asset-${safeFileName}`,
         name: safeFileName,
