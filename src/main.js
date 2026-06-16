@@ -10,6 +10,10 @@ import {
   DEFAULT_PALETTE_SIZE,
   getPreviewTileBackdrop,
 } from './color-palette.js'
+import {
+  buildSingleIconDownloadFilename,
+  toSafeFilenamePart,
+} from './download-filename.js'
 import { quantizeRgbaPixels } from './quantization.js'
 
 const defaultColors = ['#ffffff']
@@ -118,6 +122,7 @@ function getQuickStartBackgroundSampleGroups() {
       const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? `background-${index + 1}`
       return {
         id: `asset-${toSafeFilenamePart(fileName) || `background-${index + 1}`}`,
+        name: fileName,
         label: formatBackgroundSampleLabel(filePath),
         url,
       }
@@ -384,13 +389,6 @@ function getGlyphMap() {
   }
 
   return glyphMap
-}
-
-function toSafeFilenamePart(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
 
 function stripFaPrefix(iconClass) {
@@ -773,7 +771,16 @@ async function downloadPreviewIcon(iconClassName) {
       backgroundImage,
     })
     const iconName = stripFaPrefix(iconClassName)
-    triggerBlobDownload(blob, `${iconName}.${state.exportFormat}`, objectUrlRevokeDelayMs)
+    triggerBlobDownload(
+      blob,
+      buildSingleIconDownloadFilename({
+        backgroundName: state.backgroundName,
+        iconName,
+        colors: state.colors,
+        format: state.exportFormat,
+      }),
+      objectUrlRevokeDelayMs,
+    )
   } catch (error) {
     console.error(`Failed to export icon "${iconClassName}":`, error)
   }
@@ -1019,7 +1026,7 @@ backgroundSamples.addEventListener('click', async (event) => {
 
   await applyBackground({
     url: sample.url,
-    name: sample.id,
+    name: sample.name ?? sample.id,
     sampleId: sample.id,
   })
 })
