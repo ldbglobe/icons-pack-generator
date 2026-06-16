@@ -4,8 +4,9 @@ import iconSets from './icon-sets.json'
 import iconsIndex from './icons-index.json'
 import JSZip from 'jszip'
 import Fuse from 'fuse.js'
-import { GIFEncoder, applyPalette, quantize } from 'gifenc'
+import { GIFEncoder, applyPalette } from 'gifenc'
 import { extractColorPalette, DEFAULT_PALETTE_SIZE } from './color-palette.js'
+import { quantizeRgbaPixels } from './quantization.js'
 
 const defaultColors = ['#ffffff']
 const defaultExportSize = 128
@@ -496,7 +497,7 @@ async function sampleBackgroundImageData(imageUrl) {
 
 async function analyzeBackgroundImage(imageUrl) {
   const imageData = await sampleBackgroundImageData(imageUrl)
-  const { palette, dominantColor, highestContrastColor } = extractColorPalette(imageData, DEFAULT_PALETTE_SIZE, quantize)
+  const { palette, dominantColor, highestContrastColor } = extractColorPalette(imageData, DEFAULT_PALETTE_SIZE, quantizeRgbaPixels)
 
   return {
     palette,
@@ -641,7 +642,7 @@ function triggerBlobDownload(blob, filename, revokeDelayMs = 0) {
 async function exportCanvasAsGif(canvas) {
   const context = canvas.getContext('2d')
   const { data } = context.getImageData(0, 0, canvas.width, canvas.height)
-  const palette = quantize(data, 256)
+  const palette = quantizeRgbaPixels(data, 256)
   const index = applyPalette(data, palette)
   const gif = GIFEncoder()
   gif.writeFrame(index, canvas.width, canvas.height, { palette })

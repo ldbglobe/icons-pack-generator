@@ -110,11 +110,8 @@ export function collectOpaquePixels(imageData, alphaThreshold = DEFAULT_ALPHA_TH
  * }}
  *   - `palette`              – Hex colours extracted from the image (opaque pixels only)
  *   - `dominantColor`        – The most dominant colour (first entry from the quantiser)
- *   - `highestContrastColor` – The colour that best contrasts with `dominantColor`,
- *                              selected from the palette plus the absolute fallbacks
- *                              black (#000000) and white (#ffffff).  This guarantees a
- *                              readable overlay colour even when the palette is entirely
- *                              made up of light (or dark) colours.
+ *   - `highestContrastColor` – The colour from the extracted palette that best
+ *                              contrasts with `dominantColor`.
  */
 export function extractColorPalette(imageData, numColors, quantizeFn, alphaThreshold = DEFAULT_ALPHA_THRESHOLD) {
   const opaqueData = collectOpaquePixels(imageData, alphaThreshold)
