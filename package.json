@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:icons-index": "node scripts/generate-icons-index.mjs"
+    "generate:icons-index": "node scripts/generate-icons-index.mjs",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
