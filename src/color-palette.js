@@ -8,7 +8,6 @@
 
 export const DEFAULT_ALPHA_THRESHOLD = 32
 export const DEFAULT_PALETTE_SIZE = 10
-export const PREVIEW_TILE_DARK_LUMINANCE_THRESHOLD = 0.2
 export const PREVIEW_TILE_LIGHT_LUMINANCE_THRESHOLD = 0.8
 
 const defaultPreviewTileBackdrop = {
@@ -91,7 +90,6 @@ export function rgbToHex(r, g, b) {
  * get a black backdrop. Mid-range colours keep the default light checkerboard.
  *
  * @param {string | null} dominantColor
- * @param {number} [darkThreshold]
  * @param {number} [lightThreshold]
  * @returns {{
  *   backgroundColor: string,
@@ -101,7 +99,6 @@ export function rgbToHex(r, g, b) {
  */
 export function getPreviewTileBackdrop(
   dominantColor,
-  darkThreshold = PREVIEW_TILE_DARK_LUMINANCE_THRESHOLD,
   lightThreshold = PREVIEW_TILE_LIGHT_LUMINANCE_THRESHOLD,
 ) {
   if (!dominantColor) {
@@ -113,10 +110,6 @@ export function getPreviewTileBackdrop(
 
   if (luminance >= lightThreshold) {
     return brightPreviewTileBackdrop
-  }
-
-  if (luminance <= darkThreshold) {
-    return defaultPreviewTileBackdrop
   }
 
   return defaultPreviewTileBackdrop
