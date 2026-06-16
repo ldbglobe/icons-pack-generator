@@ -255,22 +255,20 @@ describe('extractColorPalette', () => {
     expect(result.palette).toContain('#0000ff')
   })
 
-  // --- Contrast selection: must never return white-on-white or black-on-black ---
+  // --- Contrast selection from extracted palette only ---
 
-  it('returns black (#000000) as overlay for a white-dominant image', () => {
-    // Background is all white — the overlay must be black for readability.
+  it('returns white when the extracted palette only contains white', () => {
     const imageData = makeImageData([
       [255, 255, 255, 255],
       [255, 255, 255, 255],
     ])
-    // Quantize returns only white
     const whiteQuantize = () => [[255, 255, 255]]
     const result = extractColorPalette(imageData, 10, whiteQuantize)
     expect(result.dominantColor).toBe('#ffffff')
-    expect(result.highestContrastColor).toBe('#000000')
+    expect(result.highestContrastColor).toBe('#ffffff')
   })
 
-  it('returns white (#ffffff) as overlay for a black-dominant image', () => {
+  it('returns black when the extracted palette only contains black', () => {
     const imageData = makeImageData([
       [0, 0, 0, 255],
       [0, 0, 0, 255],
@@ -278,29 +276,25 @@ describe('extractColorPalette', () => {
     const blackQuantize = () => [[0, 0, 0]]
     const result = extractColorPalette(imageData, 10, blackQuantize)
     expect(result.dominantColor).toBe('#000000')
-    expect(result.highestContrastColor).toBe('#ffffff')
-  })
-
-  it('returns black for a light-grey dominant image', () => {
-    const imageData = makeImageData([[200, 200, 200, 255]])
-    const lightGreyQuantize = () => [[200, 200, 200]]
-    const result = extractColorPalette(imageData, 10, lightGreyQuantize)
-    // Light grey has luminance ~0.58 — black (#000000, lum≈0) gives higher
-    // contrast than white (#ffffff, lum≈1) because:
-    // white vs 0.58 → (1.05)/(0.63) ≈ 1.67
-    // black vs 0.58 → (0.63)/(0.05) ≈ 12.6
     expect(result.highestContrastColor).toBe('#000000')
   })
 
-  it('returns white for a dark-grey dominant image', () => {
+  it('returns light grey when it is the only extracted color', () => {
+    const imageData = makeImageData([[200, 200, 200, 255]])
+    const lightGreyQuantize = () => [[200, 200, 200]]
+    const result = extractColorPalette(imageData, 10, lightGreyQuantize)
+    expect(result.highestContrastColor).toBe('#c8c8c8')
+  })
+
+  it('returns dark grey when it is the only extracted color', () => {
     const imageData = makeImageData([[50, 50, 50, 255]])
     const darkGreyQuantize = () => [[50, 50, 50]]
     const result = extractColorPalette(imageData, 10, darkGreyQuantize)
-    expect(result.highestContrastColor).toBe('#ffffff')
+    expect(result.highestContrastColor).toBe('#323232')
   })
 
   it('picks the highest-contrast palette colour when one clearly wins', () => {
-    // Dominant colour: medium grey (~0.18 lum).
+    // Dominant colour: medium grey (~0.127 lum).
     // Palette: medium grey + bright yellow + near-black.
     // Near-black should beat bright yellow in contrast against medium grey.
     const imageData = makeImageData([[100, 100, 100, 255]])
@@ -310,17 +304,12 @@ describe('extractColorPalette', () => {
       [10, 10, 10],      // near-black (very low lum)
     ]
     const result = extractColorPalette(imageData, 10, quantizeStub)
-    // Near-black vs medium grey:  contrast ≈ (0.153+0.05)/(0.003+0.05) ≈ 3.8
-    // Pure black (#000000) vs medium grey: contrast ≈ (0.153+0.05)/(0.0+0.05) ≈ 4.06
-    // Pure white (#ffffff) vs medium grey: (1.0+0.05)/(0.153+0.05) ≈ 5.2  ← wins
-    expect(result.highestContrastColor).toBe('#ffffff')
+    // Near-black vs medium grey:  contrast ≈ (0.127+0.05)/(0.003+0.05) ≈ 3.3
+    // Bright yellow vs medium grey: contrast ≈ (0.928+0.05)/(0.127+0.05) ≈ 5.5  ← wins
+    expect(result.highestContrastColor).toBe('#ffff00')
   })
 
-  it('prefers a high-contrast palette colour over black/white when it wins', () => {
-    // Dominant: near-white (lum ≈ 0.95).
-    // Palette includes a very dark colour that beats pure black slightly due to
-    // rounding… actually let's just verify the winner is picked correctly.
-    // We'll use pure black in the palette and verify it beats pure white.
+  it('returns the highest-contrast color from the palette when it exists', () => {
     const imageData = makeImageData([[240, 240, 240, 255]])
     const quantizeStub = () => [
       [240, 240, 240],  // near-white dominant
