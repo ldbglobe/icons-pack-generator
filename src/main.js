@@ -120,7 +120,7 @@ function getQuickStartBackgroundSampleGroups() {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([filePath, url], index) => {
       const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '')
-      const safeFileName = toSafeFilenamePart(fileName || `background-${index + 1}`)
+      const safeFileName = toSafeFilenamePart(fileName ?? `background-${index + 1}`)
       return {
         id: `asset-${safeFileName}`,
         name: safeFileName,
@@ -1027,7 +1027,7 @@ backgroundSamples.addEventListener('click', async (event) => {
 
   await applyBackground({
     url: sample.url,
-    name: sample.name ?? sample.id,
+    name: sample.name,
     sampleId: sample.id,
   })
 })
