@@ -16,6 +16,14 @@ function normalizeBackgroundAssetName({ backgroundFolder = '', backgroundName = 
   return folderPart || filePart || 'background'
 }
 
+function normalizeVectorBackgroundName({ vectorPresetLabel = '', vectorShape = '', vectorVariant = '' }) {
+  const parts = [vectorShape, vectorPresetLabel, vectorVariant]
+    .map(toSafeFilenamePart)
+    .filter(Boolean)
+
+  return parts.length > 0 ? `vector-${parts.join('-')}` : 'vector-background'
+}
+
 function formatColorList(colors) {
   const parts = (colors ?? [])
     .map((color) => toSafeFilenamePart(color))
@@ -25,16 +33,27 @@ function formatColorList(colors) {
 }
 
 export function buildSingleIconDownloadFilename({
+  backgroundMode = 'image',
   backgroundFolder = '',
   backgroundName = '',
+  vectorPresetLabel = '',
+  vectorShape = '',
+  vectorVariant = '',
   iconName = '',
   colors = [],
   format = 'png',
 }) {
-  const backgroundPart = normalizeBackgroundAssetName({
-    backgroundFolder,
-    backgroundName,
-  })
+  const backgroundPart =
+    backgroundMode === 'vector'
+      ? normalizeVectorBackgroundName({
+          vectorPresetLabel,
+          vectorShape,
+          vectorVariant,
+        })
+      : normalizeBackgroundAssetName({
+          backgroundFolder,
+          backgroundName,
+        })
   const iconPart = toSafeFilenamePart(iconName) || 'icon'
   const colorPart = formatColorList(colors)
 
@@ -42,8 +61,20 @@ export function buildSingleIconDownloadFilename({
 }
 
 export function buildBackgroundAssetFilenamePart({
+  backgroundMode = 'image',
   backgroundFolder = '',
   backgroundName = '',
+  vectorPresetLabel = '',
+  vectorShape = '',
+  vectorVariant = '',
 } = {}) {
+  if (backgroundMode === 'vector') {
+    return normalizeVectorBackgroundName({
+      vectorPresetLabel,
+      vectorShape,
+      vectorVariant,
+    })
+  }
+
   return normalizeBackgroundAssetName({ backgroundFolder, backgroundName })
 }

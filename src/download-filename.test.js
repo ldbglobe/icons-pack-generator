@@ -41,4 +41,28 @@ describe('buildSingleIconDownloadFilename', () => {
       }),
     ).toBe('borealis-folder-sysc-blue')
   })
+
+  it('builds a normalized filename part for vector backgrounds', () => {
+    expect(
+      buildBackgroundAssetFilenamePart({
+        backgroundMode: 'vector',
+        vectorPresetLabel: 'Blue gradient',
+        vectorShape: 'circle',
+      }),
+    ).toBe('vector-circle-blue-gradient')
+  })
+
+  it('uses vector metadata in the single icon filename when requested', () => {
+    expect(
+      buildSingleIconDownloadFilename({
+        backgroundMode: 'vector',
+        vectorPresetLabel: 'Pink outline',
+        vectorShape: 'rounded-md',
+        vectorVariant: 'border 5',
+        iconName: 'fa-heart',
+        colors: ['#ffffff'],
+        format: 'png',
+      }),
+    ).toBe('vector-rounded-md-pink-outline-border-5__fa-heart__ffffff.png')
+  })
 })

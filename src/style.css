@@ -159,6 +159,12 @@ h2 {
   gap: 0.75rem;
 }
 
+.background-mode-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .background-samples {
   display: flex;
   flex-direction: column;
@@ -341,6 +347,99 @@ h2 {
   flex-wrap: wrap;
 }
 
+.vector-preset-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.vector-preset-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.vector-preset-group-title {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.vector-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.vector-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  padding: 0.45rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  text-align: left;
+}
+
+.vector-preset.is-active {
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow:
+    0 0 0 2px rgba(56, 189, 248, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.vector-preset-swatch {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--vector-preset-radius, 50%);
+  border: var(--vector-preset-border-width, 0) solid var(--vector-preset-border-color, #ffffff);
+  background-image: linear-gradient(var(--vector-preset-angle, 45deg), var(--vector-preset-fill-start, #2f6df6), var(--vector-preset-fill-end, #9fd1ff));
+}
+
+.vector-preset-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.vector-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.vector-fields .field:last-child {
+  grid-column: 1 / -1;
+}
+
+.vector-secondary-field,
+.vector-checkbox-field {
+  align-self: end;
+}
+
+.vector-checkbox-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3.2rem;
+}
+
+.vector-checkbox-field input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #38bdf8;
+}
+
 .export-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -465,6 +564,12 @@ h2 {
   --preview-tile-back-color: #ffffff;
   --preview-transparent-base: #d7d7d7;
   --preview-transparent-accent: #efefef;
+  --preview-vector-background-radius: 50%;
+  --preview-vector-background-angle: 45deg;
+  --preview-vector-background-fill-start: #2f6df6;
+  --preview-vector-background-fill-end: #9fd1ff;
+  --preview-vector-background-border-width: 0px;
+  --preview-vector-background-border-color: #ffffff;
 }
 
 .preview-card {
@@ -505,6 +610,20 @@ h2 {
   background-size: cover, 16px 16px, 16px 16px, 16px 16px, 16px 16px;
   background-position: center, 0 0, 0 8px, 8px -8px, -8px 0;
   background-repeat: no-repeat, repeat, repeat, repeat, repeat;
+}
+
+.preview-grid--vector .preview-tile {
+  border-radius: var(--preview-vector-background-radius);
+  border: var(--preview-vector-background-border-width) solid var(--preview-vector-background-border-color);
+  background-color: var(--preview-vector-background-fill-start);
+  background-image: linear-gradient(var(--preview-vector-background-angle), var(--preview-vector-background-fill-start), var(--preview-vector-background-fill-end));
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.preview-grid--vector .preview-tile::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(15, 23, 42, 0.2));
 }
 
 .preview-tile::after {

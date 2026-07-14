@@ -16,6 +16,15 @@ import {
   toSafeFilenamePart,
 } from './download-filename.js'
 import { quantizeRgbaPixels } from './quantization.js'
+import {
+  DEFAULT_VECTOR_BACKGROUND_SETTINGS,
+  VECTOR_BACKGROUND_PRESETS,
+  VECTOR_BACKGROUND_SHAPE_OPTIONS,
+  drawVectorBackground,
+  getVectorBackgroundCssVariables,
+  getVectorBackgroundPresetSettings,
+  normalizeVectorBackgroundSettings,
+} from './vector-background.js'
 import { registerSW } from 'virtual:pwa-register'
 
 registerSW({ immediate: true })
@@ -31,6 +40,50 @@ const quickStartBackgroundModules = import.meta.glob('../assets/**/*.{avif,gif,j
   eager: true,
   import: 'default',
 })
+
+function renderVectorPresetButton(preset, index, totalCount) {
+  return `
+    <button
+      type="button"
+      class="vector-preset${state.vectorPresetId === preset.id ? ' is-active' : ''}"
+      data-vector-preset="${preset.id}"
+      aria-pressed="${state.vectorPresetId === preset.id}"
+      aria-label="Select ${preset.label} preset, item ${index + 1} of ${totalCount}"
+      title="${preset.label}"
+      style="--vector-preset-fill-start: ${preset.fillStart}; --vector-preset-fill-end: ${preset.fillEnd}; --vector-preset-border-width: ${preset.borderSize}%; --vector-preset-border-color: ${preset.borderColor}; --vector-preset-radius: ${VECTOR_BACKGROUND_SHAPE_OPTIONS.find((option) => option.value === preset.shape)?.radius ?? '50%'}; --vector-preset-angle: ${preset.angle}deg;"
+    >
+      <span class="vector-preset-swatch"></span>
+      <span class="vector-preset-name">${preset.label}</span>
+    </button>
+  `
+}
+
+function renderVectorPresetGroups() {
+  const groups = [
+    { label: 'Borealis gradients', name: 'Gradient' },
+    { label: 'White border', name: 'Outline' },
+  ]
+
+  return groups
+    .map((group) => {
+      const presets = VECTOR_BACKGROUND_PRESETS.filter((preset) => preset.group === group.name)
+      return `
+        <section class="vector-preset-group" aria-label="${group.label}">
+          <p class="vector-preset-group-title">${group.label}</p>
+          <div class="vector-preset-grid">
+            ${presets.map((preset, index) => renderVectorPresetButton(preset, index, presets.length)).join('')}
+          </div>
+        </section>
+      `
+    })
+    .join('')
+}
+
+function renderVectorShapeOptions() {
+  return VECTOR_BACKGROUND_SHAPE_OPTIONS.map(
+    (option) => `<option value="${option.value}">${option.label}</option>`,
+  ).join('')
+}
 
 function createFolderSampleUrl({ bodyTop, bodyBottom, tabTop, tabBottom, highlight }) {
   const svg = `
@@ -223,11 +276,21 @@ for (const folder of backgroundFolders) {
 
 const state = {
   backgroundObjectUrl: '',
+  backgroundMode: initialBackgroundSample ? 'image' : 'none',
   backgroundFolderId: initialBackgroundFolder?.id ?? '',
   backgroundFolderName: initialBackgroundFolder?.name ? toSafeFilenamePart(initialBackgroundFolder.name) : '',
   backgroundSampleId: '',
   backgroundUrl: '',
   backgroundName: '',
+  vectorPresetId: DEFAULT_VECTOR_BACKGROUND_SETTINGS.presetId,
+  vectorPresetLabel: DEFAULT_VECTOR_BACKGROUND_SETTINGS.presetLabel,
+  vectorShape: DEFAULT_VECTOR_BACKGROUND_SETTINGS.shape,
+  vectorFillStart: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart,
+  vectorFillEnd: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd,
+  vectorUseSecondColor: DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor,
+  vectorAngle: DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle,
+  vectorBorderSize: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize,
+  vectorBorderColor: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor,
   style: 'solid',
   offsetX: 0,
   offsetY: 20,
@@ -283,15 +346,71 @@ app.innerHTML = `
       <form class="controls" aria-label="Icon pack controls">
         <fieldset class="background-group">
           <legend>Background image</legend>
-          <div id="background-folders" class="background-folders" aria-live="polite"></div>
-          <div id="background-samples" class="background-samples" aria-live="polite"></div>
-          <div class="background-actions">
-            <button id="clear-background" type="button" class="secondary-button">No background</button>
-          </div>
-          <label class="field file-field">
-            <span>Custom image (optional)</span>
-            <input id="background-input" type="file" accept="image/*" />
+          <label class="field">
+            <span>Background mode</span>
+            <select id="background-mode">
+              <option value="image">Image</option>
+              <option value="vector">Vector</option>
+              <option value="none">None</option>
+            </select>
           </label>
+
+          <div id="background-image-panel" class="background-mode-panel">
+            <div id="background-folders" class="background-folders" aria-live="polite"></div>
+            <div id="background-samples" class="background-samples" aria-live="polite"></div>
+            <div class="background-actions">
+              <button id="clear-background" type="button" class="secondary-button">No background</button>
+            </div>
+            <label class="field file-field">
+              <span>Custom image (optional)</span>
+              <input id="background-input" type="file" accept="image/*" />
+            </label>
+          </div>
+
+          <div id="background-vector-panel" class="background-mode-panel" hidden>
+            <div class="vector-preset-toolbar">
+              ${renderVectorPresetGroups()}
+            </div>
+
+            <div class="vector-fields">
+              <label class="field">
+                <span>Shape</span>
+                <select id="vector-shape">${renderVectorShapeOptions()}</select>
+              </label>
+
+              <label class="field">
+                <span>Color 1</span>
+                <input id="vector-fill-start" type="color" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart}" />
+              </label>
+
+              <label class="field vector-secondary-field">
+                <span>Color 2</span>
+                <input id="vector-fill-end" type="color" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd}" />
+              </label>
+
+              <label class="field vector-checkbox-field">
+                <span>Use second color</span>
+                <input id="vector-use-second-color" type="checkbox" ${DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor ? 'checked' : ''} />
+              </label>
+
+              <label class="field">
+                <span>Gradient angle</span>
+                <input id="vector-angle-range" type="range" min="0" max="360" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle}" />
+                <input id="vector-angle" type="number" min="0" max="360" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle}" />
+              </label>
+
+              <label class="field">
+                <span>Border size %</span>
+                <input id="vector-border-size-range" type="range" min="0" max="20" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize}" />
+                <input id="vector-border-size" type="number" min="0" max="20" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize}" />
+              </label>
+
+              <label class="field">
+                <span>Border color</span>
+                <input id="vector-border-color" type="color" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor}" />
+              </label>
+            </div>
+          </div>
         </fieldset>
 
         <label class="field">
@@ -380,9 +499,21 @@ app.innerHTML = `
 `
 
 const backgroundInput = document.querySelector('#background-input')
+const backgroundModeSelect = document.querySelector('#background-mode')
+const backgroundImagePanel = document.querySelector('#background-image-panel')
+const backgroundVectorPanel = document.querySelector('#background-vector-panel')
 const backgroundFoldersElement = document.querySelector('#background-folders')
 const backgroundSamples = document.querySelector('#background-samples')
 const clearBackgroundButton = document.querySelector('#clear-background')
+const vectorShapeSelect = document.querySelector('#vector-shape')
+const vectorFillStartInput = document.querySelector('#vector-fill-start')
+const vectorFillEndInput = document.querySelector('#vector-fill-end')
+const vectorUseSecondColorInput = document.querySelector('#vector-use-second-color')
+const vectorAngleRange = document.querySelector('#vector-angle-range')
+const vectorAngleInput = document.querySelector('#vector-angle')
+const vectorBorderSizeRange = document.querySelector('#vector-border-size-range')
+const vectorBorderSizeInput = document.querySelector('#vector-border-size')
+const vectorBorderColorInput = document.querySelector('#vector-border-color')
 const styleSelect = document.querySelector('#style-select')
 const previewGrid = document.querySelector('#preview-grid')
 const colorFields = document.querySelector('#color-fields')
@@ -721,7 +852,98 @@ function updateBackgroundSampleSelection() {
     button.setAttribute('aria-pressed', String(isActive))
   }
 
-  clearBackgroundButton.classList.toggle('is-active', !state.backgroundUrl)
+  for (const button of document.querySelectorAll('[data-vector-preset]')) {
+    const isActive = button.dataset.vectorPreset === state.vectorPresetId
+    button.classList.toggle('is-active', isActive)
+    button.setAttribute('aria-pressed', String(isActive))
+  }
+
+  backgroundModeSelect.value = state.backgroundMode
+  backgroundImagePanel.hidden = state.backgroundMode !== 'image'
+  backgroundVectorPanel.hidden = state.backgroundMode !== 'vector'
+  clearBackgroundButton.classList.toggle('is-active', state.backgroundMode === 'none')
+}
+
+function syncVectorInputs() {
+  const normalized = normalizeVectorBackgroundSettings({
+    shape: state.vectorShape,
+    fillStart: state.vectorFillStart,
+    fillEnd: state.vectorFillEnd,
+    useSecondColor: state.vectorUseSecondColor,
+    angle: state.vectorAngle,
+    borderSize: state.vectorBorderSize,
+    borderColor: state.vectorBorderColor,
+    presetId: state.vectorPresetId,
+    presetLabel: state.vectorPresetLabel,
+  })
+
+  state.vectorShape = normalized.shape
+  state.vectorFillStart = normalized.fillStart
+  state.vectorFillEnd = normalized.fillEnd
+  state.vectorUseSecondColor = normalized.useSecondColor
+  state.vectorAngle = normalized.angle
+  state.vectorBorderSize = normalized.borderSize
+  state.vectorBorderColor = normalized.borderColor
+
+  vectorShapeSelect.value = state.vectorShape
+  vectorFillStartInput.value = state.vectorFillStart
+  vectorFillEndInput.value = state.vectorFillEnd
+  vectorUseSecondColorInput.checked = state.vectorUseSecondColor
+  vectorAngleRange.value = String(state.vectorAngle)
+  vectorAngleInput.value = String(state.vectorAngle)
+  vectorBorderSizeRange.value = String(state.vectorBorderSize)
+  vectorBorderSizeInput.value = String(state.vectorBorderSize)
+  vectorBorderColorInput.value = state.vectorBorderColor
+}
+
+function applyVectorPreset(presetId) {
+  const preset = getVectorBackgroundPresetSettings(presetId)
+  if (!preset) {
+    return
+  }
+
+  state.backgroundMode = 'vector'
+  state.vectorPresetId = presetId
+  state.vectorPresetLabel = preset.presetLabel || preset.label || 'Custom'
+  state.vectorShape = preset.shape
+  state.vectorFillStart = preset.fillStart
+  state.vectorFillEnd = preset.fillEnd
+  state.vectorUseSecondColor = preset.useSecondColor
+  state.vectorAngle = preset.angle
+  state.vectorBorderSize = preset.borderSize
+  state.vectorBorderColor = preset.borderColor
+  state.backgroundUrl = ''
+  state.backgroundName = ''
+  state.backgroundSampleId = ''
+  revokeBackgroundObjectUrl()
+  backgroundInput.value = ''
+  syncVectorInputs()
+  updateBackgroundSampleSelection()
+  renderPaletteSwatches()
+  renderPreview()
+}
+
+function updateVectorControlsUi() {
+  syncVectorInputs()
+  for (const button of document.querySelectorAll('[data-vector-preset]')) {
+    const isActive = button.dataset.vectorPreset === state.vectorPresetId
+    button.classList.toggle('is-active', isActive)
+    button.setAttribute('aria-pressed', String(isActive))
+  }
+}
+
+function markVectorAsCustom() {
+  state.vectorPresetId = ''
+  state.vectorPresetLabel = 'Custom'
+}
+
+function syncVectorSetting(key, value) {
+  state.backgroundMode = 'vector'
+  markVectorAsCustom()
+  state[key] = value
+  syncVectorInputs()
+  updateBackgroundSampleSelection()
+  renderPreview()
 }
 
 function canvasToBlob(canvas, mimeType, quality = 0.92) {
@@ -769,20 +991,20 @@ async function exportCanvasAsGif(canvas) {
   return new Blob([gif.bytesView()], { type: 'image/gif' })
 }
 
-async function renderIconBlob({ glyph, size, format, backgroundImage }) {
+async function renderIconBlob({ glyph, size, format, backgroundImage, vectorBackgroundSettings }) {
   const { family, weight } = exportFontVariants[state.style]
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
   const context = canvas.getContext('2d')
 
-  if (format === 'jpg' && !backgroundImage) {
+  if (vectorBackgroundSettings) {
+    drawVectorBackground(context, size, vectorBackgroundSettings)
+  } else if (backgroundImage) {
+    drawBackgroundImageCover(context, backgroundImage, size)
+  } else if (format === 'jpg') {
     context.fillStyle = '#ffffff'
     context.fillRect(0, 0, size, size)
-  }
-
-  if (backgroundImage) {
-    drawBackgroundImageCover(context, backgroundImage, size)
   }
 
   const iconSize = Math.max(size * (state.size / 100), 1)
@@ -833,12 +1055,29 @@ async function exportIconPack() {
     const icons = getExportIconNames()
     const exportableIcons = icons.filter((iconName) => glyphMap.has(`fa-${iconName}`))
     const { family, weight } = exportFontVariants[state.style]
-    const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    const backgroundImage = state.backgroundMode === 'image' && state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    const vectorBackgroundSettings = state.backgroundMode === 'vector'
+      ? normalizeVectorBackgroundSettings({
+          shape: state.vectorShape,
+          fillStart: state.vectorFillStart,
+          fillEnd: state.vectorFillEnd,
+          useSecondColor: state.vectorUseSecondColor,
+          angle: state.vectorAngle,
+          borderSize: state.vectorBorderSize,
+          borderColor: state.vectorBorderColor,
+          presetId: state.vectorPresetId,
+          presetLabel: state.vectorPresetLabel,
+        })
+      : null
     const backgroundFilenamePart = buildBackgroundAssetFilenamePart({
+      backgroundMode: state.backgroundMode,
       backgroundFolder: state.backgroundFolderName,
       backgroundName: state.backgroundName,
+      vectorPresetLabel: state.vectorPresetLabel,
+      vectorShape: state.vectorShape,
+      vectorVariant: state.vectorBorderSize > 0 ? 'border' : (state.vectorUseSecondColor ? 'gradient' : 'solid'),
     })
-    const zipBaseName = state.backgroundUrl ? backgroundFilenamePart : 'icon-pack'
+    const zipBaseName = state.backgroundMode === 'none' ? 'icon-pack' : backgroundFilenamePart
     state.exportProcessedCount = 0
     state.exportTotalCount = exportableIcons.length
     updateExportButton()
@@ -852,6 +1091,7 @@ async function exportIconPack() {
         size: state.exportSize,
         format: state.exportFormat,
         backgroundImage,
+        vectorBackgroundSettings,
       })
       zip.file(`${iconName}.${state.exportFormat}`, iconBlob)
 
@@ -884,19 +1124,37 @@ async function downloadPreviewIcon(iconClassName) {
   }
 
   try {
-    const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    const backgroundImage = state.backgroundMode === 'image' && state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
+    const vectorBackgroundSettings = state.backgroundMode === 'vector'
+      ? normalizeVectorBackgroundSettings({
+          shape: state.vectorShape,
+          fillStart: state.vectorFillStart,
+          fillEnd: state.vectorFillEnd,
+          useSecondColor: state.vectorUseSecondColor,
+          angle: state.vectorAngle,
+          borderSize: state.vectorBorderSize,
+          borderColor: state.vectorBorderColor,
+          presetId: state.vectorPresetId,
+          presetLabel: state.vectorPresetLabel,
+        })
+      : null
     const blob = await renderIconBlob({
       glyph,
       size: state.exportSize,
       format: state.exportFormat,
       backgroundImage,
+      vectorBackgroundSettings,
     })
     const iconName = stripFaPrefix(iconClassName)
     triggerBlobDownload(
       blob,
       buildSingleIconDownloadFilename({
+        backgroundMode: state.backgroundMode,
         backgroundFolder: state.backgroundFolderName,
         backgroundName: state.backgroundName,
+        vectorPresetLabel: state.vectorPresetLabel,
+        vectorShape: state.vectorShape,
+        vectorVariant: state.vectorBorderSize > 0 ? 'border' : (state.vectorUseSecondColor ? 'gradient' : 'solid'),
         iconName,
         colors: state.colors,
         format: state.exportFormat,
@@ -1010,12 +1268,27 @@ function getPreviewTileSize() {
 
 function updatePreviewStyles() {
   const { family, weight } = exportFontVariants[state.style]
-  const hasBackground = Boolean(state.backgroundUrl)
+  const hasImageBackground = state.backgroundMode === 'image' && Boolean(state.backgroundUrl)
+  const hasVectorBackground = state.backgroundMode === 'vector'
   const hasGradient = state.colors.length > 1
   const x = 50 + state.offsetX * 0.5
   const y = 50 + state.offsetY * 0.5
   const iconSizePixels = Math.max((getPreviewTileSize() * state.size) / 100, 0)
   const previewTileBackdrop = getPreviewTileBackdrop(state.dominantColor)
+  const vectorBackgroundVariables = hasVectorBackground
+    ? getVectorBackgroundCssVariables(
+        {
+          shape: state.vectorShape,
+          fillStart: state.vectorFillStart,
+          fillEnd: state.vectorFillEnd,
+          useSecondColor: state.vectorUseSecondColor,
+          angle: state.vectorAngle,
+          borderSize: state.vectorBorderSize,
+          borderColor: state.vectorBorderColor,
+        },
+        previewTileSize,
+      )
+    : getVectorBackgroundCssVariables(DEFAULT_VECTOR_BACKGROUND_SETTINGS, previewTileSize)
 
   previewGrid.style.setProperty('--preview-icon-font-family', family)
   previewGrid.style.setProperty('--preview-icon-font-weight', weight)
@@ -1024,12 +1297,16 @@ function updatePreviewStyles() {
   previewGrid.style.setProperty('--preview-icon-offset-y', `${y}%`)
   previewGrid.style.setProperty('--preview-icon-color', state.colors[0] ?? '#ffffff')
   previewGrid.style.setProperty('--preview-icon-gradient', getPreviewGradient())
-  previewGrid.style.setProperty('--preview-background-image', hasBackground ? `url("${state.backgroundUrl}")` : 'none')
+  previewGrid.style.setProperty('--preview-background-image', hasImageBackground ? `url("${state.backgroundUrl}")` : 'none')
   previewGrid.style.setProperty('--preview-tile-back-color', previewTileBackdrop.backgroundColor)
   previewGrid.style.setProperty('--preview-transparent-base', previewTileBackdrop.motifBase)
   previewGrid.style.setProperty('--preview-transparent-accent', previewTileBackdrop.motifAccent)
-  previewGrid.classList.toggle('preview-grid--with-background', hasBackground)
-  previewGrid.classList.toggle('preview-grid--transparent', !hasBackground)
+  for (const [name, value] of Object.entries(vectorBackgroundVariables)) {
+    previewGrid.style.setProperty(name, value)
+  }
+  previewGrid.classList.toggle('preview-grid--with-background', hasImageBackground)
+  previewGrid.classList.toggle('preview-grid--vector', hasVectorBackground)
+  previewGrid.classList.toggle('preview-grid--transparent', state.backgroundMode === 'none')
   previewGrid.classList.toggle('preview-grid--gradient', hasGradient)
 }
 
@@ -1135,10 +1412,12 @@ async function applyBackground({
   folderId = '',
   folderName = '',
   isBlobUrl = false,
+  backgroundMode = url ? 'image' : 'none',
 }) {
   const previousBackgroundObjectUrl = state.backgroundObjectUrl
   revokeBackgroundObjectUrl(previousBackgroundObjectUrl)
 
+  state.backgroundMode = backgroundMode
   state.backgroundUrl = url
   state.backgroundName = name ? toSafeFilenamePart(name) : ''
   state.backgroundFolderId = folderId
@@ -1181,7 +1460,7 @@ backgroundInput.addEventListener('change', async (event) => {
   const [file] = event.target.files ?? []
 
   if (!file) {
-    await applyBackground({ url: '' })
+    await applyBackground({ url: '', backgroundMode: 'none' })
     return
   }
 
@@ -1190,6 +1469,7 @@ backgroundInput.addEventListener('change', async (event) => {
     url,
     name: file.name.replace(/\.[^.]*$/, ''),
     isBlobUrl: true,
+    backgroundMode: 'image',
   })
 })
 
@@ -1216,6 +1496,7 @@ backgroundFoldersElement.addEventListener('click', async (event) => {
     sampleId: firstSample.id,
     folderId: folder.id,
     folderName: folder.name,
+    backgroundMode: 'image',
   })
 })
 
@@ -1236,6 +1517,7 @@ backgroundSamples.addEventListener('click', async (event) => {
     sampleId: sample.id,
     folderId: sample.folderId,
     folderName: sample.folderName,
+    backgroundMode: 'image',
   })
 })
 
@@ -1244,7 +1526,85 @@ clearBackgroundButton.addEventListener('click', async () => {
     url: '',
     folderId: state.backgroundFolderId,
     folderName: state.backgroundFolderName,
+    backgroundMode: 'none',
   })
+})
+
+backgroundModeSelect.addEventListener('change', (event) => {
+  const mode = event.target.value
+
+  if (mode === 'vector') {
+    state.backgroundMode = 'vector'
+    state.backgroundUrl = ''
+    state.backgroundName = ''
+    state.backgroundSampleId = ''
+    revokeBackgroundObjectUrl()
+    backgroundInput.value = ''
+    syncVectorInputs()
+    updateBackgroundSampleSelection()
+    renderPaletteSwatches()
+    renderPreview()
+    return
+  }
+
+  if (mode === 'none') {
+    state.backgroundMode = 'none'
+    state.backgroundUrl = ''
+    state.backgroundName = ''
+    state.backgroundSampleId = ''
+    revokeBackgroundObjectUrl()
+    backgroundInput.value = ''
+    updateBackgroundSampleSelection()
+    renderPaletteSwatches()
+    renderPreview()
+    return
+  }
+
+  state.backgroundMode = 'image'
+  updateBackgroundSampleSelection()
+  renderPreview()
+})
+
+for (const presetButton of document.querySelectorAll('[data-vector-preset]')) {
+  presetButton.addEventListener('click', () => {
+    applyVectorPreset(presetButton.dataset.vectorPreset)
+  })
+}
+
+vectorShapeSelect.addEventListener('change', (event) => {
+  syncVectorSetting('vectorShape', event.target.value)
+})
+
+vectorFillStartInput.addEventListener('input', (event) => {
+  syncVectorSetting('vectorFillStart', event.target.value.toLowerCase())
+})
+
+vectorFillEndInput.addEventListener('input', (event) => {
+  syncVectorSetting('vectorFillEnd', event.target.value.toLowerCase())
+})
+
+vectorUseSecondColorInput.addEventListener('change', (event) => {
+  syncVectorSetting('vectorUseSecondColor', event.target.checked)
+})
+
+vectorAngleRange.addEventListener('input', (event) => {
+  syncVectorSetting('vectorAngle', clampAngle(event.target.value))
+})
+
+vectorAngleInput.addEventListener('input', (event) => {
+  syncVectorSetting('vectorAngle', clampAngle(event.target.value))
+})
+
+vectorBorderSizeRange.addEventListener('input', (event) => {
+  syncVectorSetting('vectorBorderSize', clampBorderSize(event.target.value))
+})
+
+vectorBorderSizeInput.addEventListener('input', (event) => {
+  syncVectorSetting('vectorBorderSize', clampBorderSize(event.target.value))
+})
+
+vectorBorderColorInput.addEventListener('input', (event) => {
+  syncVectorSetting('vectorBorderColor', event.target.value.toLowerCase())
 })
 
 styleSelect.addEventListener('change', (event) => {
@@ -1392,10 +1752,12 @@ updateSortButton()
 renderColorFields()
 renderBackgroundFolders()
 renderBackgroundSamples()
+updateBackgroundSampleSelection()
+updateVectorControlsUi()
 updateExportButton()
 updateInstallUi()
 
-if (initialBackgroundSample) {
+if (state.backgroundMode === 'image' && initialBackgroundSample) {
   applyBackground({
     url: initialBackgroundSample.url,
     name: initialBackgroundSample.name,
@@ -1403,6 +1765,10 @@ if (initialBackgroundSample) {
     folderId: initialBackgroundFolder?.id ?? '',
     folderName: initialBackgroundFolder?.name ?? '',
   })
+} else if (state.backgroundMode === 'vector') {
+  updateBackgroundSampleSelection()
+  renderPaletteSwatches()
+  renderPreview()
 } else {
   updateBackgroundSampleSelection()
   renderPaletteSwatches()
