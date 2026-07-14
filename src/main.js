@@ -176,10 +176,6 @@ function renderVectorColorFields() {
       ${renderVectorColorField({ label: 'Fill 2', id: 'vector-fill-end', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd })}
       ${renderVectorColorField({ label: 'Border', id: 'vector-border-color', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor })}
     </div>
-    <label class="field vector-use-second-color-field">
-      <span>Two colors</span>
-      <input id="vector-use-second-color" type="checkbox" ${DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor ? 'checked' : ''} />
-    </label>
   `
 }
 
@@ -385,7 +381,6 @@ const state = {
   vectorShape: DEFAULT_VECTOR_BACKGROUND_SETTINGS.shape,
   vectorFillStart: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart,
   vectorFillEnd: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd,
-  vectorUseSecondColor: DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor,
   vectorAngle: DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle,
   vectorBorderSize: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize,
   vectorBorderColor: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor,
@@ -460,7 +455,10 @@ app.innerHTML = `
               <input id="background-input" type="file" accept="image/*" />
             </label>
           </div>
+        </fieldset>
 
+        <fieldset id="vector-mode-section" class="background-group">
+          <legend>Vector mode</legend>
           <div id="background-vector-panel" class="background-mode-panel" hidden>
             <div class="vector-shape-toolbar">
               <p class="vector-preset-group-title">Shape</p>
@@ -473,16 +471,7 @@ app.innerHTML = `
               ${renderVectorPresetGroups()}
             </div>
 
-            <div class="vector-color-grid">
-              ${renderVectorColorField({ label: 'Fill 1', id: 'vector-fill-start', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart })}
-              ${renderVectorColorField({ label: 'Fill 2', id: 'vector-fill-end', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd })}
-              ${renderVectorColorField({ label: 'Border', id: 'vector-border-color', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor })}
-            </div>
-
-            <label class="field vector-use-second-color-field">
-              <span>Two colors</span>
-              <input id="vector-use-second-color" type="checkbox" ${DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor ? 'checked' : ''} />
-            </label>
+            ${renderVectorColorFields()}
 
             ${renderVectorRangeField({ label: 'Angle', idRange: 'vector-angle-range', idNumber: 'vector-angle', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle, min: 0, max: 360 })}
             ${renderVectorRangeField({ label: 'Border', idRange: 'vector-border-size-range', idNumber: 'vector-border-size', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize, min: 0, max: 25 })}
@@ -499,7 +488,7 @@ app.innerHTML = `
         </label>
 
         <fieldset class="glyph-group">
-          <legend>Glyph position &amp; size</legend>
+          <legend>GLYPH</legend>
           <div class="glyph-fields">
             <div class="glyph-field">
               <span>X</span>
@@ -517,10 +506,6 @@ app.innerHTML = `
               <input id="glyph-size" type="number" min="0" max="100" step="1" value="40" />
             </div>
           </div>
-        </fieldset>
-
-        <fieldset class="colors-group">
-          <legend>Icon colors</legend>
           <div id="color-fields" class="color-fields" aria-live="polite"></div>
           <div class="color-actions">
             <button id="add-color" type="button" class="secondary-button">Add color</button>
@@ -577,12 +562,12 @@ app.innerHTML = `
 const backgroundInput = document.querySelector('#background-input')
 const backgroundModesElement = document.querySelector('#background-modes')
 const backgroundImagePanel = document.querySelector('#background-image-panel')
+const vectorModeSection = document.querySelector('#vector-mode-section')
 const backgroundVectorPanel = document.querySelector('#background-vector-panel')
 const backgroundFoldersElement = document.querySelector('#background-folders')
 const backgroundSamples = document.querySelector('#background-samples')
 const vectorFillStartInput = document.querySelector('#vector-fill-start')
 const vectorFillEndInput = document.querySelector('#vector-fill-end')
-const vectorUseSecondColorInput = document.querySelector('#vector-use-second-color')
 const vectorAngleRange = document.querySelector('#vector-angle-range')
 const vectorAngleInput = document.querySelector('#vector-angle')
 const vectorBorderSizeRange = document.querySelector('#vector-border-size-range')
@@ -946,6 +931,7 @@ function updateBackgroundSampleSelection() {
   }
 
   backgroundImagePanel.hidden = state.backgroundMode !== 'image'
+  vectorModeSection.hidden = state.backgroundMode !== 'vector'
   backgroundVectorPanel.hidden = state.backgroundMode !== 'vector'
 }
 
@@ -954,7 +940,6 @@ function syncVectorInputs() {
     shape: state.vectorShape,
     fillStart: state.vectorFillStart,
     fillEnd: state.vectorFillEnd,
-    useSecondColor: state.vectorUseSecondColor,
     angle: state.vectorAngle,
     borderSize: state.vectorBorderSize,
     borderColor: state.vectorBorderColor,
@@ -965,7 +950,6 @@ function syncVectorInputs() {
   state.vectorShape = normalized.shape
   state.vectorFillStart = normalized.fillStart
   state.vectorFillEnd = normalized.fillEnd
-  state.vectorUseSecondColor = normalized.useSecondColor
   state.vectorAngle = normalized.angle
   state.vectorBorderSize = normalized.borderSize
   state.vectorBorderColor = normalized.borderColor
@@ -978,8 +962,6 @@ function syncVectorInputs() {
 
   vectorFillStartInput.value = state.vectorFillStart
   vectorFillEndInput.value = state.vectorFillEnd
-  vectorFillEndInput.disabled = !state.vectorUseSecondColor
-  vectorUseSecondColorInput.checked = state.vectorUseSecondColor
   vectorAngleRange.value = String(state.vectorAngle)
   vectorAngleInput.value = String(state.vectorAngle)
   vectorBorderSizeRange.value = String(state.vectorBorderSize)
@@ -1020,7 +1002,6 @@ function applyVectorPreset(presetId) {
   state.vectorShape = preset.shape
   state.vectorFillStart = preset.fillStart
   state.vectorFillEnd = preset.fillEnd
-  state.vectorUseSecondColor = preset.useSecondColor
   state.vectorAngle = preset.angle
   state.vectorBorderSize = preset.borderSize
   state.vectorBorderColor = preset.borderColor
@@ -1198,7 +1179,6 @@ async function exportIconPack() {
           shape: state.vectorShape,
           fillStart: state.vectorFillStart,
           fillEnd: state.vectorFillEnd,
-          useSecondColor: state.vectorUseSecondColor,
           angle: state.vectorAngle,
           borderSize: state.vectorBorderSize,
           borderColor: state.vectorBorderColor,
@@ -1212,7 +1192,7 @@ async function exportIconPack() {
       backgroundName: state.backgroundName,
       vectorPresetLabel: state.vectorPresetLabel,
       vectorShape: state.vectorShape,
-      vectorVariant: state.vectorBorderSize > 0 ? 'border' : (state.vectorUseSecondColor ? 'gradient' : 'solid'),
+      vectorVariant: state.vectorBorderSize > 0 ? 'border' : 'gradient',
     })
     const zipBaseName = state.backgroundMode === 'none' ? 'icon-pack' : backgroundFilenamePart
     state.exportProcessedCount = 0
@@ -1267,7 +1247,6 @@ async function downloadPreviewIcon(iconClassName) {
           shape: state.vectorShape,
           fillStart: state.vectorFillStart,
           fillEnd: state.vectorFillEnd,
-          useSecondColor: state.vectorUseSecondColor,
           angle: state.vectorAngle,
           borderSize: state.vectorBorderSize,
           borderColor: state.vectorBorderColor,
@@ -1291,7 +1270,7 @@ async function downloadPreviewIcon(iconClassName) {
         backgroundName: state.backgroundName,
         vectorPresetLabel: state.vectorPresetLabel,
         vectorShape: state.vectorShape,
-        vectorVariant: state.vectorBorderSize > 0 ? 'border' : (state.vectorUseSecondColor ? 'gradient' : 'solid'),
+        vectorVariant: state.vectorBorderSize > 0 ? 'border' : 'gradient',
         iconName,
         colors: state.colors,
         format: state.exportFormat,
@@ -1418,7 +1397,6 @@ function updatePreviewStyles() {
           shape: state.vectorShape,
           fillStart: state.vectorFillStart,
           fillEnd: state.vectorFillEnd,
-          useSecondColor: state.vectorUseSecondColor,
           angle: state.vectorAngle,
           borderSize: state.vectorBorderSize,
           borderColor: state.vectorBorderColor,
@@ -1736,10 +1714,6 @@ vectorFillStartInput.addEventListener('input', (event) => {
 
 vectorFillEndInput.addEventListener('input', (event) => {
   syncVectorSetting('vectorFillEnd', event.target.value.toLowerCase())
-})
-
-vectorUseSecondColorInput.addEventListener('change', (event) => {
-  syncVectorSetting('vectorUseSecondColor', event.target.checked)
 })
 
 vectorAngleRange.addEventListener('input', (event) => {

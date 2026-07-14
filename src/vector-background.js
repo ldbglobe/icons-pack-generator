@@ -62,8 +62,7 @@ export const DEFAULT_VECTOR_BACKGROUND_SETTINGS = {
   shape: 'circle',
   fillStart: '#2f6df6',
   fillEnd: '#9fd1ff',
-  useSecondColor: true,
-  angle: 45,
+  angle: 225,
   borderSize: 0,
   borderColor: '#ffffff',
   presetId: 'borealis-blue-gradient',
@@ -81,8 +80,7 @@ export const VECTOR_BACKGROUND_PRESETS = borealisToneDefinitions.flatMap((tone) 
       shape: 'circle',
       fillStart: tone.base,
       fillEnd: lightTone,
-      useSecondColor: true,
-      angle: 45,
+      angle: 225,
       borderSize: 0,
       borderColor: '#ffffff',
       presetLabel: `${tone.label} gradient`,
@@ -94,8 +92,7 @@ export const VECTOR_BACKGROUND_PRESETS = borealisToneDefinitions.flatMap((tone) 
       shape: 'circle',
       fillStart: '#ffffff',
       fillEnd: '#ffffff',
-      useSecondColor: false,
-      angle: 45,
+      angle: 225,
       borderSize: 5,
       borderColor: tone.base,
       presetLabel: `${tone.label} outline`,
@@ -119,7 +116,6 @@ export function normalizeVectorBackgroundSettings(settings = {}) {
     : DEFAULT_VECTOR_BACKGROUND_SETTINGS.shape
   const fillStart = normalizeHexColor(settings.fillStart, DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart)
   const fillEnd = normalizeHexColor(settings.fillEnd, fillStart)
-  const useSecondColor = Boolean(settings.useSecondColor)
   const angle = clampPercent(settings.angle ?? DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle, 0, 360)
   const borderSize = clampPercent(settings.borderSize ?? DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize, 0, 25)
   const borderColor = normalizeHexColor(settings.borderColor, DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor)
@@ -128,7 +124,6 @@ export function normalizeVectorBackgroundSettings(settings = {}) {
     shape,
     fillStart,
     fillEnd,
-    useSecondColor,
     angle,
     borderSize,
     borderColor,
@@ -154,7 +149,7 @@ export function getVectorBackgroundCssVariables(settings, tileSize) {
     '--preview-vector-background-radius': getVectorBackgroundShapeRadius(normalized.shape),
     '--preview-vector-background-angle': `${normalized.angle}deg`,
     '--preview-vector-background-fill-start': normalized.fillStart,
-    '--preview-vector-background-fill-end': normalized.useSecondColor ? normalized.fillEnd : normalized.fillStart,
+    '--preview-vector-background-fill-end': normalized.fillEnd,
     '--preview-vector-background-border-width': `${borderSizePx}px`,
     '--preview-vector-background-border-color': normalized.borderColor,
   }
@@ -218,7 +213,7 @@ function drawVectorShapePath(context, inset, size, shape) {
 }
 
 function createVectorBackgroundFillStyle(context, size, settings) {
-  if (!settings.useSecondColor || settings.fillStart === settings.fillEnd) {
+  if (settings.fillStart === settings.fillEnd) {
     return settings.fillStart
   }
 
