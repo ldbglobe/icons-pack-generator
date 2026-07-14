@@ -2,7 +2,6 @@ const shapeRadiusByValue = {
   square: '0%',
   'rounded-sm': '16%',
   'rounded-md': '28%',
-  'rounded-lg': '38%',
   circle: '50%',
 }
 
@@ -55,8 +54,7 @@ function mixWithWhite(hex, ratio = 0.42) {
 export const VECTOR_BACKGROUND_SHAPE_OPTIONS = [
   { value: 'square', label: 'Square', radius: shapeRadiusByValue.square },
   { value: 'rounded-sm', label: 'Rounded S', radius: shapeRadiusByValue['rounded-sm'] },
-  { value: 'rounded-md', label: 'Rounded M', radius: shapeRadiusByValue['rounded-md'] },
-  { value: 'rounded-lg', label: 'Rounded L', radius: shapeRadiusByValue['rounded-lg'] },
+  { value: 'rounded-md', label: 'Rounded', radius: shapeRadiusByValue['rounded-md'] },
   { value: 'circle', label: 'Circle', radius: shapeRadiusByValue.circle },
 ]
 
@@ -123,7 +121,7 @@ export function normalizeVectorBackgroundSettings(settings = {}) {
   const fillEnd = normalizeHexColor(settings.fillEnd, fillStart)
   const useSecondColor = Boolean(settings.useSecondColor)
   const angle = clampPercent(settings.angle ?? DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle, 0, 360)
-  const borderSize = clampPercent(settings.borderSize ?? DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize, 0, 50)
+  const borderSize = clampPercent(settings.borderSize ?? DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize, 0, 25)
   const borderColor = normalizeHexColor(settings.borderColor, DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor)
 
   return {
@@ -150,7 +148,7 @@ export function getVectorBackgroundPresetSettings(presetId) {
 
 export function getVectorBackgroundCssVariables(settings, tileSize) {
   const normalized = normalizeVectorBackgroundSettings(settings)
-  const borderSizePx = Math.round((Math.max(tileSize, 0) * normalized.borderSize) / 100)
+  const borderSizePx = Math.round((Math.max(tileSize, 0) * normalized.borderSize) / 50)
 
   return {
     '--preview-vector-background-radius': getVectorBackgroundShapeRadius(normalized.shape),
@@ -233,7 +231,7 @@ function createVectorBackgroundFillStyle(context, size, settings) {
 
 export function drawVectorBackground(context, size, settings) {
   const normalized = normalizeVectorBackgroundSettings(settings)
-  const borderSizePx = Math.max(0, (size * normalized.borderSize) / 100)
+  const borderSizePx = Math.max(0, (size * normalized.borderSize) / 50)
   const inset = Math.min(borderSizePx, size / 2)
 
   context.save()

@@ -79,10 +79,73 @@ function renderVectorPresetGroups() {
     .join('')
 }
 
-function renderVectorShapeOptions() {
-  return VECTOR_BACKGROUND_SHAPE_OPTIONS.map(
-    (option) => `<option value="${option.value}">${option.label}</option>`,
-  ).join('')
+function renderVectorModeButton() {
+  return `
+    <button
+      type="button"
+      class="background-folder background-mode-button${state.backgroundMode === 'vector' ? ' is-active' : ''}"
+      data-background-mode="vector"
+      aria-pressed="${state.backgroundMode === 'vector'}"
+      aria-label="Select vector background mode"
+      title="Vector background"
+    >
+      <span class="background-folder-thumb-wrap background-mode-thumb-wrap">
+        <span class="background-mode-thumb background-mode-thumb--vector"></span>
+      </span>
+      <span class="background-folder-name">Vector</span>
+    </button>
+  `
+}
+
+function renderVectorShapeButtons() {
+  return VECTOR_BACKGROUND_SHAPE_OPTIONS.map((option) => `
+    <button
+      type="button"
+      class="vector-shape-button${state.vectorShape === option.value ? ' is-active' : ''}"
+      data-vector-shape="${option.value}"
+      aria-pressed="${state.vectorShape === option.value}"
+      aria-label="Select ${option.label} shape"
+      title="${option.label}"
+    >
+      <span class="vector-shape-preview vector-shape-preview--${option.value}"></span>
+      <span class="vector-shape-label">${option.label}</span>
+    </button>
+  `).join('')
+}
+
+function renderVectorColorField({ label, id, value, disabled = false }) {
+  return `
+    <label class="field color-field vector-color-field">
+      <span>${label}</span>
+      <div class="color-input-row">
+        <input id="${id}" class="color-picker" type="color" value="${value}" ${disabled ? 'disabled' : ''} aria-label="${label}" />
+      </div>
+    </label>
+  `
+}
+
+function renderVectorRangeField({ label, idRange, idNumber, value, min, max, step = 1 }) {
+  return `
+    <label class="field glyph-field vector-range-field">
+      <span>${label}</span>
+      <input id="${idRange}" type="range" min="${min}" max="${max}" step="${step}" value="${value}" />
+      <input id="${idNumber}" type="number" min="${min}" max="${max}" step="${step}" value="${value}" />
+    </label>
+  `
+}
+
+function renderVectorColorFields() {
+  return `
+    <div class="vector-color-grid">
+      ${renderVectorColorField({ label: 'Fill 1', id: 'vector-fill-start', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart })}
+      ${renderVectorColorField({ label: 'Fill 2', id: 'vector-fill-end', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd })}
+      ${renderVectorColorField({ label: 'Border', id: 'vector-border-color', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor })}
+    </div>
+    <label class="field vector-use-second-color-field">
+      <span>Two colors</span>
+      <input id="vector-use-second-color" type="checkbox" ${DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor ? 'checked' : ''} />
+    </label>
+  `
 }
 
 function createFolderSampleUrl({ bodyTop, bodyBottom, tabTop, tabBottom, highlight }) {
@@ -346,21 +409,13 @@ app.innerHTML = `
       <form class="controls" aria-label="Icon pack controls">
         <fieldset class="background-group">
           <legend>Background image</legend>
-          <label class="field">
-            <span>Background mode</span>
-            <select id="background-mode">
-              <option value="image">Image</option>
-              <option value="vector">Vector</option>
-              <option value="none">None</option>
-            </select>
-          </label>
+          <div id="background-folders" class="background-folders" aria-live="polite"></div>
+          <div class="background-actions">
+            <button id="clear-background" type="button" class="secondary-button">No background</button>
+          </div>
 
           <div id="background-image-panel" class="background-mode-panel">
-            <div id="background-folders" class="background-folders" aria-live="polite"></div>
             <div id="background-samples" class="background-samples" aria-live="polite"></div>
-            <div class="background-actions">
-              <button id="clear-background" type="button" class="secondary-button">No background</button>
-            </div>
             <label class="field file-field">
               <span>Custom image (optional)</span>
               <input id="background-input" type="file" accept="image/*" />
@@ -368,48 +423,30 @@ app.innerHTML = `
           </div>
 
           <div id="background-vector-panel" class="background-mode-panel" hidden>
+            <div class="vector-shape-toolbar">
+              <p class="vector-preset-group-title">Shape</p>
+              <div class="vector-shape-grid">
+                ${renderVectorShapeButtons()}
+              </div>
+            </div>
+
             <div class="vector-preset-toolbar">
               ${renderVectorPresetGroups()}
             </div>
 
-            <div class="vector-fields">
-              <label class="field">
-                <span>Shape</span>
-                <select id="vector-shape">${renderVectorShapeOptions()}</select>
-              </label>
-
-              <label class="field">
-                <span>Color 1</span>
-                <input id="vector-fill-start" type="color" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart}" />
-              </label>
-
-              <label class="field vector-secondary-field">
-                <span>Color 2</span>
-                <input id="vector-fill-end" type="color" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd}" />
-              </label>
-
-              <label class="field vector-checkbox-field">
-                <span>Use second color</span>
-                <input id="vector-use-second-color" type="checkbox" ${DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor ? 'checked' : ''} />
-              </label>
-
-              <label class="field">
-                <span>Gradient angle</span>
-                <input id="vector-angle-range" type="range" min="0" max="360" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle}" />
-                <input id="vector-angle" type="number" min="0" max="360" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle}" />
-              </label>
-
-              <label class="field">
-                <span>Border size %</span>
-                <input id="vector-border-size-range" type="range" min="0" max="20" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize}" />
-                <input id="vector-border-size" type="number" min="0" max="20" step="1" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize}" />
-              </label>
-
-              <label class="field">
-                <span>Border color</span>
-                <input id="vector-border-color" type="color" value="${DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor}" />
-              </label>
+            <div class="vector-color-grid">
+              ${renderVectorColorField({ label: 'Fill 1', id: 'vector-fill-start', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillStart })}
+              ${renderVectorColorField({ label: 'Fill 2', id: 'vector-fill-end', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.fillEnd })}
+              ${renderVectorColorField({ label: 'Border', id: 'vector-border-color', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderColor })}
             </div>
+
+            <label class="field vector-use-second-color-field">
+              <span>Two colors</span>
+              <input id="vector-use-second-color" type="checkbox" ${DEFAULT_VECTOR_BACKGROUND_SETTINGS.useSecondColor ? 'checked' : ''} />
+            </label>
+
+            ${renderVectorRangeField({ label: 'Angle', idRange: 'vector-angle-range', idNumber: 'vector-angle', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.angle, min: 0, max: 360 })}
+            ${renderVectorRangeField({ label: 'Border', idRange: 'vector-border-size-range', idNumber: 'vector-border-size', value: DEFAULT_VECTOR_BACKGROUND_SETTINGS.borderSize, min: 0, max: 25 })}
           </div>
         </fieldset>
 
@@ -499,13 +536,11 @@ app.innerHTML = `
 `
 
 const backgroundInput = document.querySelector('#background-input')
-const backgroundModeSelect = document.querySelector('#background-mode')
 const backgroundImagePanel = document.querySelector('#background-image-panel')
 const backgroundVectorPanel = document.querySelector('#background-vector-panel')
 const backgroundFoldersElement = document.querySelector('#background-folders')
 const backgroundSamples = document.querySelector('#background-samples')
 const clearBackgroundButton = document.querySelector('#clear-background')
-const vectorShapeSelect = document.querySelector('#vector-shape')
 const vectorFillStartInput = document.querySelector('#vector-fill-start')
 const vectorFillEndInput = document.querySelector('#vector-fill-end')
 const vectorUseSecondColorInput = document.querySelector('#vector-use-second-color')
@@ -539,6 +574,14 @@ function clampOffset(value) {
 
 function clampSize(value) {
   return Math.max(0, Math.min(100, Number(value) || 0))
+}
+
+function clampAngle(value) {
+  return Math.max(0, Math.min(360, Number(value) || 0))
+}
+
+function clampBorderSize(value) {
+  return Math.max(0, Math.min(25, Number(value) || 0))
 }
 
 const exportFontVariants = {
@@ -785,14 +828,14 @@ function getActiveBackgroundFolder() {
 }
 
 function renderBackgroundFolders() {
-  backgroundFoldersElement.innerHTML = backgroundFolders
-    .map(
+  backgroundFoldersElement.innerHTML = [
+    ...backgroundFolders.map(
       (folder, index) => `
         <button
           type="button"
-          class="background-folder${state.backgroundFolderId === folder.id ? ' is-active' : ''}"
+          class="background-folder${state.backgroundMode === 'image' && state.backgroundFolderId === folder.id ? ' is-active' : ''}"
           data-background-folder="${folder.id}"
-          aria-pressed="${state.backgroundFolderId === folder.id}"
+          aria-pressed="${state.backgroundMode === 'image' && state.backgroundFolderId === folder.id}"
           aria-label="Select ${folder.label} folder, group ${index + 1} of ${backgroundFolders.length}"
           title="${folder.label}"
         >
@@ -802,8 +845,9 @@ function renderBackgroundFolders() {
           <span class="background-folder-name">${folder.label}</span>
         </button>
       `,
-    )
-    .join('')
+    ),
+    renderVectorModeButton(),
+  ].join('')
 }
 
 function renderBackgroundSamples() {
@@ -842,8 +886,9 @@ function renderBackgroundSamples() {
 function updateBackgroundSampleSelection() {
   for (const button of backgroundFoldersElement.querySelectorAll('[data-background-folder]')) {
     const isActive = button.dataset.backgroundFolder === state.backgroundFolderId
-    button.classList.toggle('is-active', isActive)
-    button.setAttribute('aria-pressed', String(isActive))
+    const shouldBeActive = state.backgroundMode === 'image' && isActive
+    button.classList.toggle('is-active', shouldBeActive)
+    button.setAttribute('aria-pressed', String(shouldBeActive))
   }
 
   for (const button of backgroundSamples.querySelectorAll('[data-background-sample]')) {
@@ -852,13 +897,12 @@ function updateBackgroundSampleSelection() {
     button.setAttribute('aria-pressed', String(isActive))
   }
 
-  for (const button of document.querySelectorAll('[data-vector-preset]')) {
-    const isActive = button.dataset.vectorPreset === state.vectorPresetId
+  for (const button of document.querySelectorAll('[data-background-mode="vector"]')) {
+    const isActive = state.backgroundMode === 'vector'
     button.classList.toggle('is-active', isActive)
     button.setAttribute('aria-pressed', String(isActive))
   }
 
-  backgroundModeSelect.value = state.backgroundMode
   backgroundImagePanel.hidden = state.backgroundMode !== 'image'
   backgroundVectorPanel.hidden = state.backgroundMode !== 'vector'
   clearBackgroundButton.classList.toggle('is-active', state.backgroundMode === 'none')
@@ -885,9 +929,15 @@ function syncVectorInputs() {
   state.vectorBorderSize = normalized.borderSize
   state.vectorBorderColor = normalized.borderColor
 
-  vectorShapeSelect.value = state.vectorShape
+  for (const button of document.querySelectorAll('[data-vector-shape]')) {
+    const isActive = button.dataset.vectorShape === state.vectorShape
+    button.classList.toggle('is-active', isActive)
+    button.setAttribute('aria-pressed', String(isActive))
+  }
+
   vectorFillStartInput.value = state.vectorFillStart
   vectorFillEndInput.value = state.vectorFillEnd
+  vectorFillEndInput.disabled = !state.vectorUseSecondColor
   vectorUseSecondColorInput.checked = state.vectorUseSecondColor
   vectorAngleRange.value = String(state.vectorAngle)
   vectorAngleInput.value = String(state.vectorAngle)
@@ -896,12 +946,33 @@ function syncVectorInputs() {
   vectorBorderColorInput.value = state.vectorBorderColor
 }
 
+function setGlyphDefaultsForVectorMode() {
+  state.offsetX = 0
+  state.offsetY = 0
+  state.size = 45
+  glyphInputs.offsetX.range.value = '0'
+  glyphInputs.offsetX.number.value = '0'
+  glyphInputs.offsetY.range.value = '0'
+  glyphInputs.offsetY.number.value = '0'
+  glyphInputs.size.range.value = '45'
+  glyphInputs.size.number.value = '45'
+}
+
+function enterVectorMode() {
+  state.backgroundMode = 'vector'
+  setGlyphDefaultsForVectorMode()
+  syncVectorInputs()
+  updateBackgroundSampleSelection()
+  renderPreview()
+}
+
 function applyVectorPreset(presetId) {
   const preset = getVectorBackgroundPresetSettings(presetId)
   if (!preset) {
     return
   }
 
+  const shouldResetGlyphs = state.backgroundMode !== 'vector'
   state.backgroundMode = 'vector'
   state.vectorPresetId = presetId
   state.vectorPresetLabel = preset.presetLabel || preset.label || 'Custom'
@@ -912,11 +983,9 @@ function applyVectorPreset(presetId) {
   state.vectorAngle = preset.angle
   state.vectorBorderSize = preset.borderSize
   state.vectorBorderColor = preset.borderColor
-  state.backgroundUrl = ''
-  state.backgroundName = ''
-  state.backgroundSampleId = ''
-  revokeBackgroundObjectUrl()
-  backgroundInput.value = ''
+  if (shouldResetGlyphs) {
+    setGlyphDefaultsForVectorMode()
+  }
   syncVectorInputs()
   updateBackgroundSampleSelection()
   renderPaletteSwatches()
@@ -925,6 +994,11 @@ function applyVectorPreset(presetId) {
 
 function updateVectorControlsUi() {
   syncVectorInputs()
+  for (const button of document.querySelectorAll('[data-background-mode="vector"]')) {
+    const isActive = state.backgroundMode === 'vector'
+    button.classList.toggle('is-active', isActive)
+    button.setAttribute('aria-pressed', String(isActive))
+  }
   for (const button of document.querySelectorAll('[data-vector-preset]')) {
     const isActive = button.dataset.vectorPreset === state.vectorPresetId
     button.classList.toggle('is-active', isActive)
@@ -941,6 +1015,18 @@ function syncVectorSetting(key, value) {
   state.backgroundMode = 'vector'
   markVectorAsCustom()
   state[key] = value
+  syncVectorInputs()
+  updateBackgroundSampleSelection()
+  renderPreview()
+}
+
+function syncVectorRangeField(rangeInput, numberInput, key, clampFn, event) {
+  const nextValue = clampFn(event.target.value)
+  state.backgroundMode = 'vector'
+  markVectorAsCustom()
+  state[key] = nextValue
+  rangeInput.value = String(nextValue)
+  numberInput.value = String(nextValue)
   syncVectorInputs()
   updateBackgroundSampleSelection()
   renderPreview()
@@ -1474,6 +1560,12 @@ backgroundInput.addEventListener('change', async (event) => {
 })
 
 backgroundFoldersElement.addEventListener('click', async (event) => {
+  const modeButton = event.target.closest('[data-background-mode="vector"]')
+  if (modeButton) {
+    enterVectorMode()
+    return
+  }
+
   const button = event.target.closest('[data-background-folder]')
   if (!button) {
     return
@@ -1530,50 +1622,17 @@ clearBackgroundButton.addEventListener('click', async () => {
   })
 })
 
-backgroundModeSelect.addEventListener('change', (event) => {
-  const mode = event.target.value
-
-  if (mode === 'vector') {
-    state.backgroundMode = 'vector'
-    state.backgroundUrl = ''
-    state.backgroundName = ''
-    state.backgroundSampleId = ''
-    revokeBackgroundObjectUrl()
-    backgroundInput.value = ''
-    syncVectorInputs()
-    updateBackgroundSampleSelection()
-    renderPaletteSwatches()
-    renderPreview()
-    return
-  }
-
-  if (mode === 'none') {
-    state.backgroundMode = 'none'
-    state.backgroundUrl = ''
-    state.backgroundName = ''
-    state.backgroundSampleId = ''
-    revokeBackgroundObjectUrl()
-    backgroundInput.value = ''
-    updateBackgroundSampleSelection()
-    renderPaletteSwatches()
-    renderPreview()
-    return
-  }
-
-  state.backgroundMode = 'image'
-  updateBackgroundSampleSelection()
-  renderPreview()
-})
-
 for (const presetButton of document.querySelectorAll('[data-vector-preset]')) {
   presetButton.addEventListener('click', () => {
     applyVectorPreset(presetButton.dataset.vectorPreset)
   })
 }
 
-vectorShapeSelect.addEventListener('change', (event) => {
-  syncVectorSetting('vectorShape', event.target.value)
-})
+for (const shapeButton of document.querySelectorAll('[data-vector-shape]')) {
+  shapeButton.addEventListener('click', () => {
+    syncVectorSetting('vectorShape', shapeButton.dataset.vectorShape)
+  })
+}
 
 vectorFillStartInput.addEventListener('input', (event) => {
   syncVectorSetting('vectorFillStart', event.target.value.toLowerCase())
@@ -1588,19 +1647,19 @@ vectorUseSecondColorInput.addEventListener('change', (event) => {
 })
 
 vectorAngleRange.addEventListener('input', (event) => {
-  syncVectorSetting('vectorAngle', clampAngle(event.target.value))
+  syncVectorRangeField(vectorAngleRange, vectorAngleInput, 'vectorAngle', clampAngle, event)
 })
 
 vectorAngleInput.addEventListener('input', (event) => {
-  syncVectorSetting('vectorAngle', clampAngle(event.target.value))
+  syncVectorRangeField(vectorAngleRange, vectorAngleInput, 'vectorAngle', clampAngle, event)
 })
 
 vectorBorderSizeRange.addEventListener('input', (event) => {
-  syncVectorSetting('vectorBorderSize', clampBorderSize(event.target.value))
+  syncVectorRangeField(vectorBorderSizeRange, vectorBorderSizeInput, 'vectorBorderSize', clampBorderSize, event)
 })
 
 vectorBorderSizeInput.addEventListener('input', (event) => {
-  syncVectorSetting('vectorBorderSize', clampBorderSize(event.target.value))
+  syncVectorRangeField(vectorBorderSizeRange, vectorBorderSizeInput, 'vectorBorderSize', clampBorderSize, event)
 })
 
 vectorBorderColorInput.addEventListener('input', (event) => {
