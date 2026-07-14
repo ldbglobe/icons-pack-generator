@@ -16,6 +16,9 @@ import {
   toSafeFilenamePart,
 } from './download-filename.js'
 import { quantizeRgbaPixels } from './quantization.js'
+import { registerSW } from 'virtual:pwa-register'
+
+registerSW({ immediate: true })
 
 const defaultColors = ['#ffffff']
 const defaultExportSize = 128
@@ -354,6 +357,8 @@ app.innerHTML = `
             </label>
           </div>
           <button id="export-button" type="button" class="primary-button export-button">Download icon pack ZIP</button>
+          <button id="install-button" type="button" class="secondary-button install-button" hidden>Install web app</button>
+          <p id="install-hint" class="hint install-hint" hidden></p>
         </fieldset>
       </form>
     </section>
@@ -389,6 +394,8 @@ const searchInput = document.querySelector('#search-input')
 const exportFormatSelect = document.querySelector('#export-format')
 const exportSizeSelect = document.querySelector('#export-size')
 const exportButton = document.querySelector('#export-button')
+const installButton = document.querySelector('#install-button')
+const installHint = document.querySelector('#install-hint')
 const glyphInputs = {
   offsetX: { range: document.querySelector('#offset-x-range'), number: document.querySelector('#offset-x') },
   offsetY: { range: document.querySelector('#offset-y-range'), number: document.querySelector('#offset-y') },
@@ -920,9 +927,58 @@ const previewGridColumns = 6
 let cachedGlyphMap = null
 let previewRenderVersion = 0
 let previewStructureKey = ''
+let deferredInstallPromptEvent = null
 
 function getPreviewStructureKey() {
   return `${state.style}:${state.sortOrder}:${normalizeSearchTerm(state.searchQuery)}`
+}
+
+function isStandaloneMode() {
+  const isDisplayModeStandalone = window.matchMedia('(display-mode: standalone)').matches
+  const isIosStandalone = window.navigator.standalone === true
+  return isDisplayModeStandalone || isIosStandalone
+}
+
+function isIosSafari() {
+  const userAgent = window.navigator.userAgent.toLowerCase()
+  const isIos = /iphone|ipad|ipod/.test(userAgent)
+  const isWebkit = /webkit/.test(userAgent)
+  const isCriOS = /crios/.test(userAgent)
+  const isFxiOS = /fxios/.test(userAgent)
+  return isIos && isWebkit && !isCriOS && !isFxiOS
+}
+
+function updateInstallUi() {
+  const installed = isStandaloneMode()
+
+  if (installed) {
+    installButton.hidden = true
+    installHint.hidden = false
+    installHint.textContent = 'Web app already installed on this device.'
+    return
+  }
+
+  if (deferredInstallPromptEvent) {
+    installButton.hidden = false
+    installButton.disabled = false
+    installButton.textContent = 'Install web app'
+    installHint.hidden = true
+    installHint.textContent = ''
+    return
+  }
+
+  if (isIosSafari()) {
+    installButton.hidden = true
+    installHint.hidden = false
+    installHint.textContent = 'On iPhone/iPad: Share -> Add to Home Screen.'
+    return
+  }
+
+  installButton.hidden = false
+  installButton.disabled = true
+  installButton.textContent = 'Install unavailable'
+  installHint.hidden = false
+  installHint.textContent = 'Install becomes available when supported by your browser.'
 }
 
 function getPreviewGradient() {
@@ -1303,12 +1359,41 @@ exportButton.addEventListener('click', () => {
   exportIconPack()
 })
 
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault()
+  deferredInstallPromptEvent = event
+  updateInstallUi()
+})
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPromptEvent = null
+  updateInstallUi()
+})
+
+installButton.addEventListener('click', async () => {
+  if (!deferredInstallPromptEvent) {
+    updateInstallUi()
+    return
+  }
+
+  installButton.disabled = true
+
+  try {
+    deferredInstallPromptEvent.prompt()
+    await deferredInstallPromptEvent.userChoice
+  } finally {
+    deferredInstallPromptEvent = null
+    updateInstallUi()
+  }
+})
+
 sortPreviewIcons()
 updateSortButton()
 renderColorFields()
 renderBackgroundFolders()
 renderBackgroundSamples()
 updateExportButton()
+updateInstallUi()
 
 if (initialBackgroundSample) {
   applyBackground({

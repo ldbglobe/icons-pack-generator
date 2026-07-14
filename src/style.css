@@ -352,6 +352,15 @@ h2 {
   width: 100%;
 }
 
+.install-button {
+  width: 100%;
+  margin-top: 0.55rem;
+}
+
+.install-hint {
+  margin-top: 0.55rem;
+}
+
 .primary-button,
 .secondary-button,
 .icon-button {
