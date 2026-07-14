@@ -163,7 +163,7 @@ h2 {
   background: rgba(15, 23, 42, 0.52);
 }
 
-.mode-dependent-block {
+.controls .mode-dependent-block {
   display: none;
 }
 
