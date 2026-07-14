@@ -444,7 +444,7 @@ app.innerHTML = `
           </div>
         </fieldset>
 
-        <fieldset class="background-group">
+        <fieldset id="background-image-section" class="background-group">
           <legend>Background image</legend>
           <div id="background-folders" class="background-folders" aria-live="polite"></div>
 
@@ -561,6 +561,7 @@ app.innerHTML = `
 
 const backgroundInput = document.querySelector('#background-input')
 const backgroundModesElement = document.querySelector('#background-modes')
+const backgroundImageSection = document.querySelector('#background-image-section')
 const backgroundImagePanel = document.querySelector('#background-image-panel')
 const vectorModeSection = document.querySelector('#vector-mode-section')
 const backgroundVectorPanel = document.querySelector('#background-vector-panel')
@@ -930,6 +931,7 @@ function updateBackgroundSampleSelection() {
     button.setAttribute('aria-pressed', String(isActive))
   }
 
+  backgroundImageSection.hidden = state.backgroundMode !== 'image'
   backgroundImagePanel.hidden = state.backgroundMode !== 'image'
   vectorModeSection.hidden = state.backgroundMode !== 'vector'
   backgroundVectorPanel.hidden = state.backgroundMode !== 'vector'
