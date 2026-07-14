@@ -42,6 +42,9 @@ const quickStartBackgroundModules = import.meta.glob('../assets/**/*.{avif,gif,j
 })
 
 function renderVectorPresetButton(preset, index, totalCount) {
+  const currentShapeRadius = VECTOR_BACKGROUND_SHAPE_OPTIONS.find((option) => option.value === state.vectorShape)?.radius ?? '50%'
+  const borderWidthPx = preset.borderSize > 0 ? `${Math.max(2, Math.round(preset.borderSize / 2))}px` : '0px'
+
   return `
     <button
       type="button"
@@ -50,33 +53,21 @@ function renderVectorPresetButton(preset, index, totalCount) {
       aria-pressed="${state.vectorPresetId === preset.id}"
       aria-label="Select ${preset.label} preset, item ${index + 1} of ${totalCount}"
       title="${preset.label}"
-      style="--vector-preset-fill-start: ${preset.fillStart}; --vector-preset-fill-end: ${preset.fillEnd}; --vector-preset-border-width: ${preset.borderSize}%; --vector-preset-border-color: ${preset.borderColor}; --vector-preset-radius: ${VECTOR_BACKGROUND_SHAPE_OPTIONS.find((option) => option.value === preset.shape)?.radius ?? '50%'}; --vector-preset-angle: ${preset.angle}deg;"
+      style="--vector-preset-fill-start: ${preset.fillStart}; --vector-preset-fill-end: ${preset.fillEnd}; --vector-preset-border-width: ${borderWidthPx}; --vector-preset-border-color: ${preset.borderColor}; --vector-preset-radius: ${currentShapeRadius}; --vector-preset-angle: ${preset.angle}deg;"
     >
       <span class="vector-preset-swatch"></span>
-      <span class="vector-preset-name">${preset.label}</span>
     </button>
   `
 }
 
 function renderVectorPresetGroups() {
-  const groups = [
-    { label: 'Borealis gradients', name: 'Gradient' },
-    { label: 'White border', name: 'Outline' },
-  ]
+  const presets = VECTOR_BACKGROUND_PRESETS
 
-  return groups
-    .map((group) => {
-      const presets = VECTOR_BACKGROUND_PRESETS.filter((preset) => preset.group === group.name)
-      return `
-        <section class="vector-preset-group" aria-label="${group.label}">
-          <p class="vector-preset-group-title">${group.label}</p>
-          <div class="vector-preset-grid">
-            ${presets.map((preset, index) => renderVectorPresetButton(preset, index, presets.length)).join('')}
-          </div>
-        </section>
-      `
-    })
-    .join('')
+  return `
+    <div class="vector-preset-grid" aria-label="Quick vector presets">
+      ${presets.map((preset, index) => renderVectorPresetButton(preset, index, presets.length)).join('')}
+    </div>
+  `
 }
 
 function renderVectorModeButton() {
@@ -905,6 +896,7 @@ function updateBackgroundSampleSelection() {
 
   backgroundImagePanel.hidden = state.backgroundMode !== 'image'
   backgroundVectorPanel.hidden = state.backgroundMode !== 'vector'
+  clearBackgroundButton.hidden = state.backgroundMode !== 'image'
   clearBackgroundButton.classList.toggle('is-active', state.backgroundMode === 'none')
 }
 
@@ -1001,6 +993,16 @@ function updateVectorControlsUi() {
   }
   for (const button of document.querySelectorAll('[data-vector-preset]')) {
     const isActive = button.dataset.vectorPreset === state.vectorPresetId
+    const preset = VECTOR_BACKGROUND_PRESETS.find((candidate) => candidate.id === button.dataset.vectorPreset)
+    const currentShapeRadius = VECTOR_BACKGROUND_SHAPE_OPTIONS.find((option) => option.value === state.vectorShape)?.radius ?? '50%'
+    if (preset) {
+      button.style.setProperty('--vector-preset-fill-start', preset.fillStart)
+      button.style.setProperty('--vector-preset-fill-end', preset.fillEnd)
+      button.style.setProperty('--vector-preset-border-width', preset.borderSize > 0 ? `${Math.max(2, Math.round(preset.borderSize / 2))}px` : '0px')
+      button.style.setProperty('--vector-preset-border-color', preset.borderColor)
+      button.style.setProperty('--vector-preset-angle', `${preset.angle}deg`)
+    }
+    button.style.setProperty('--vector-preset-radius', currentShapeRadius)
     button.classList.toggle('is-active', isActive)
     button.setAttribute('aria-pressed', String(isActive))
   }
