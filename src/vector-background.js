@@ -143,7 +143,7 @@ export function getVectorBackgroundPresetSettings(presetId) {
 
 export function getVectorBackgroundCssVariables(settings, tileSize) {
   const normalized = normalizeVectorBackgroundSettings(settings)
-  const borderSizePx = Math.round((Math.max(tileSize, 0) * normalized.borderSize) / 50)
+  const borderSizePx = Math.round((Math.max(tileSize, 0) * normalized.borderSize) / 100)
 
   return {
     '--preview-vector-background-radius': getVectorBackgroundShapeRadius(normalized.shape),
@@ -226,7 +226,7 @@ function createVectorBackgroundFillStyle(context, size, settings) {
 
 export function drawVectorBackground(context, size, settings) {
   const normalized = normalizeVectorBackgroundSettings(settings)
-  const borderSizePx = Math.max(0, (size * normalized.borderSize) / 50)
+  const borderSizePx = Math.max(0, (size * normalized.borderSize) / 100)
   const inset = Math.min(borderSizePx, size / 2)
 
   context.save()

@@ -436,15 +436,15 @@ app.innerHTML = `
         <h1>Icon pack preview</h1>
       </div>
 
-      <form class="controls" aria-label="Icon pack controls">
-        <fieldset class="background-group background-mode-group">
+      <form id="controls-form" class="controls" aria-label="Icon pack controls">
+        <fieldset class="control-block background-group background-mode-group">
           <legend>Background mode</legend>
           <div id="background-modes" class="background-modes" aria-live="polite">
             ${renderBackgroundModeButtons()}
           </div>
         </fieldset>
 
-        <fieldset id="background-image-section" class="background-group">
+        <fieldset id="background-image-section" class="control-block background-group mode-dependent-block mode-image-block">
           <legend>Background image</legend>
           <div id="background-folders" class="background-folders" aria-live="polite"></div>
 
@@ -457,9 +457,9 @@ app.innerHTML = `
           </div>
         </fieldset>
 
-        <fieldset id="vector-mode-section" class="background-group">
+        <fieldset id="vector-mode-section" class="control-block background-group mode-dependent-block mode-vector-block">
           <legend>Vector mode</legend>
-          <div id="background-vector-panel" class="background-mode-panel" hidden>
+          <div id="background-vector-panel" class="background-mode-panel">
             <div class="vector-shape-toolbar">
               <p class="vector-preset-group-title">Shape</p>
               <div class="vector-shape-grid">
@@ -478,44 +478,46 @@ app.innerHTML = `
           </div>
         </fieldset>
 
-        <label class="field">
-          <span>Font Awesome style</span>
-          <select id="style-select">
-            <option value="solid">Free Solid</option>
-            <option value="regular">Free Regular</option>
-            <option value="brands">Free Brands</option>
-          </select>
-        </label>
+        <section class="control-block glyph-options-group" aria-label="Glyph options">
+          <label class="field">
+            <span>Font Awesome style</span>
+            <select id="style-select">
+              <option value="solid">Free Solid</option>
+              <option value="regular">Free Regular</option>
+              <option value="brands">Free Brands</option>
+            </select>
+          </label>
 
-        <fieldset class="glyph-group">
-          <legend>GLYPH</legend>
-          <div class="glyph-fields">
-            <div class="glyph-field">
-              <span>X</span>
-              <input id="offset-x-range" type="range" min="-100" max="100" step="1" value="0" />
-              <input id="offset-x" type="number" min="-100" max="100" step="1" value="0" />
+          <fieldset class="glyph-group">
+            <legend>GLYPH</legend>
+            <div class="glyph-fields">
+              <div class="glyph-field">
+                <span>X</span>
+                <input id="offset-x-range" type="range" min="-100" max="100" step="1" value="0" />
+                <input id="offset-x" type="number" min="-100" max="100" step="1" value="0" />
+              </div>
+              <div class="glyph-field">
+                <span>Y</span>
+                <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="20" />
+                <input id="offset-y" type="number" min="-100" max="100" step="1" value="20" />
+              </div>
+              <div class="glyph-field">
+                <span>Size</span>
+                <input id="glyph-size-range" type="range" min="0" max="100" step="1" value="40" />
+                <input id="glyph-size" type="number" min="0" max="100" step="1" value="40" />
+              </div>
             </div>
-            <div class="glyph-field">
-              <span>Y</span>
-              <input id="offset-y-range" type="range" min="-100" max="100" step="1" value="20" />
-              <input id="offset-y" type="number" min="-100" max="100" step="1" value="20" />
+            <div id="color-fields" class="color-fields" aria-live="polite"></div>
+            <div class="color-actions">
+              <button id="add-color" type="button" class="secondary-button">Add color</button>
+              <button id="reset-colors" type="button" class="secondary-button">Reset</button>
             </div>
-            <div class="glyph-field">
-              <span>Size</span>
-              <input id="glyph-size-range" type="range" min="0" max="100" step="1" value="40" />
-              <input id="glyph-size" type="number" min="0" max="100" step="1" value="40" />
-            </div>
-          </div>
-          <div id="color-fields" class="color-fields" aria-live="polite"></div>
-          <div class="color-actions">
-            <button id="add-color" type="button" class="secondary-button">Add color</button>
-            <button id="reset-colors" type="button" class="secondary-button">Reset</button>
-          </div>
-          <p class="hint">Multiple colors render as a gradient. Up to four colors.</p>
-          <div id="palette-swatches" class="palette-swatches" aria-live="polite"></div>
-        </fieldset>
+            <p class="hint">Multiple colors render as a gradient. Up to four colors.</p>
+            <div id="palette-swatches" class="palette-swatches" aria-live="polite"></div>
+          </fieldset>
+        </section>
 
-        <fieldset class="export-group">
+        <fieldset class="control-block export-group">
           <legend>Export settings</legend>
           <div class="export-fields">
             <label class="field">
@@ -560,11 +562,8 @@ app.innerHTML = `
 `
 
 const backgroundInput = document.querySelector('#background-input')
+const controlsForm = document.querySelector('#controls-form')
 const backgroundModesElement = document.querySelector('#background-modes')
-const backgroundImageSection = document.querySelector('#background-image-section')
-const backgroundImagePanel = document.querySelector('#background-image-panel')
-const vectorModeSection = document.querySelector('#vector-mode-section')
-const backgroundVectorPanel = document.querySelector('#background-vector-panel')
 const backgroundFoldersElement = document.querySelector('#background-folders')
 const backgroundSamples = document.querySelector('#background-samples')
 const vectorFillStartInput = document.querySelector('#vector-fill-start')
@@ -912,6 +911,8 @@ function renderBackgroundSamples() {
 }
 
 function updateBackgroundSampleSelection() {
+  controlsForm.dataset.backgroundMode = state.backgroundMode
+
   for (const button of backgroundFoldersElement.querySelectorAll('[data-background-folder]')) {
     const isActive = button.dataset.backgroundFolder === state.backgroundFolderId
     const shouldBeActive = state.backgroundMode === 'image' && isActive
@@ -930,11 +931,6 @@ function updateBackgroundSampleSelection() {
     button.classList.toggle('is-active', isActive)
     button.setAttribute('aria-pressed', String(isActive))
   }
-
-  backgroundImageSection.hidden = state.backgroundMode !== 'image'
-  backgroundImagePanel.hidden = state.backgroundMode !== 'image'
-  vectorModeSection.hidden = state.backgroundMode !== 'vector'
-  backgroundVectorPanel.hidden = state.backgroundMode !== 'vector'
 }
 
 function syncVectorInputs() {

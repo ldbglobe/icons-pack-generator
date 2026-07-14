@@ -153,6 +153,32 @@ h2 {
   gap: 1rem;
 }
 
+.control-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.mode-dependent-block {
+  display: none;
+}
+
+.controls[data-background-mode='image'] .mode-image-block {
+  display: flex;
+}
+
+.controls[data-background-mode='vector'] .mode-vector-block {
+  display: flex;
+}
+
+.glyph-options-group {
+  gap: 0.9rem;
+}
+
 .background-group {
   display: flex;
   flex-direction: column;
