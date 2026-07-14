@@ -74,7 +74,7 @@ function renderVectorModeButton() {
   return `
     <button
       type="button"
-      class="background-folder background-mode-button${state.backgroundMode === 'vector' ? ' is-active' : ''}"
+      class="background-folder background-mode-option background-mode-button${state.backgroundMode === 'vector' ? ' is-active' : ''}"
       data-background-mode="vector"
       aria-pressed="${state.backgroundMode === 'vector'}"
       aria-label="Select vector background mode"
@@ -86,6 +86,50 @@ function renderVectorModeButton() {
       <span class="background-folder-name">Vector</span>
     </button>
   `
+}
+
+function renderImageModeButton() {
+  return `
+    <button
+      type="button"
+      class="background-folder background-mode-option background-mode-button${state.backgroundMode === 'image' ? ' is-active' : ''}"
+      data-background-mode="image"
+      aria-pressed="${state.backgroundMode === 'image'}"
+      aria-label="Select image folder background mode"
+      title="Image folders"
+    >
+      <span class="background-folder-thumb-wrap background-mode-thumb-wrap">
+        <span class="background-mode-thumb background-mode-thumb--image" aria-hidden="true"></span>
+      </span>
+      <span class="background-folder-name">Image folders</span>
+    </button>
+  `
+}
+
+function renderNoBackgroundModeButton() {
+  return `
+    <button
+      type="button"
+      class="background-folder background-mode-option background-mode-button${state.backgroundMode === 'none' ? ' is-active' : ''}"
+      data-background-mode="none"
+      aria-pressed="${state.backgroundMode === 'none'}"
+      aria-label="Select no background mode"
+      title="No background"
+    >
+      <span class="background-folder-thumb-wrap background-mode-thumb-wrap">
+        <span class="background-mode-thumb background-mode-thumb--none" aria-hidden="true"></span>
+      </span>
+      <span class="background-folder-name">No background</span>
+    </button>
+  `
+}
+
+function renderBackgroundModeButtons() {
+  return [
+    renderImageModeButton(),
+    renderVectorModeButton(),
+    renderNoBackgroundModeButton(),
+  ].join('')
 }
 
 function renderVectorShapeButtons() {
@@ -398,12 +442,16 @@ app.innerHTML = `
       </div>
 
       <form class="controls" aria-label="Icon pack controls">
+        <fieldset class="background-group background-mode-group">
+          <legend>Background mode</legend>
+          <div id="background-modes" class="background-modes" aria-live="polite">
+            ${renderBackgroundModeButtons()}
+          </div>
+        </fieldset>
+
         <fieldset class="background-group">
           <legend>Background image</legend>
           <div id="background-folders" class="background-folders" aria-live="polite"></div>
-          <div class="background-actions">
-            <button id="clear-background" type="button" class="secondary-button">No background</button>
-          </div>
 
           <div id="background-image-panel" class="background-mode-panel">
             <div id="background-samples" class="background-samples" aria-live="polite"></div>
@@ -527,11 +575,11 @@ app.innerHTML = `
 `
 
 const backgroundInput = document.querySelector('#background-input')
+const backgroundModesElement = document.querySelector('#background-modes')
 const backgroundImagePanel = document.querySelector('#background-image-panel')
 const backgroundVectorPanel = document.querySelector('#background-vector-panel')
 const backgroundFoldersElement = document.querySelector('#background-folders')
 const backgroundSamples = document.querySelector('#background-samples')
-const clearBackgroundButton = document.querySelector('#clear-background')
 const vectorFillStartInput = document.querySelector('#vector-fill-start')
 const vectorFillEndInput = document.querySelector('#vector-fill-end')
 const vectorUseSecondColorInput = document.querySelector('#vector-use-second-color')
@@ -819,8 +867,8 @@ function getActiveBackgroundFolder() {
 }
 
 function renderBackgroundFolders() {
-  backgroundFoldersElement.innerHTML = [
-    ...backgroundFolders.map(
+  backgroundFoldersElement.innerHTML = backgroundFolders
+    .map(
       (folder, index) => `
         <button
           type="button"
@@ -836,9 +884,12 @@ function renderBackgroundFolders() {
           <span class="background-folder-name">${folder.label}</span>
         </button>
       `,
-    ),
-    renderVectorModeButton(),
-  ].join('')
+    )
+    .join('')
+}
+
+function renderBackgroundModes() {
+  backgroundModesElement.innerHTML = renderBackgroundModeButtons()
 }
 
 function renderBackgroundSamples() {
@@ -888,16 +939,14 @@ function updateBackgroundSampleSelection() {
     button.setAttribute('aria-pressed', String(isActive))
   }
 
-  for (const button of document.querySelectorAll('[data-background-mode="vector"]')) {
-    const isActive = state.backgroundMode === 'vector'
+  for (const button of backgroundModesElement.querySelectorAll('[data-background-mode]')) {
+    const isActive = button.dataset.backgroundMode === state.backgroundMode
     button.classList.toggle('is-active', isActive)
     button.setAttribute('aria-pressed', String(isActive))
   }
 
   backgroundImagePanel.hidden = state.backgroundMode !== 'image'
   backgroundVectorPanel.hidden = state.backgroundMode !== 'vector'
-  clearBackgroundButton.hidden = state.backgroundMode !== 'image'
-  clearBackgroundButton.classList.toggle('is-active', state.backgroundMode === 'none')
 }
 
 function syncVectorInputs() {
@@ -986,8 +1035,8 @@ function applyVectorPreset(presetId) {
 
 function updateVectorControlsUi() {
   syncVectorInputs()
-  for (const button of document.querySelectorAll('[data-background-mode="vector"]')) {
-    const isActive = state.backgroundMode === 'vector'
+  for (const button of backgroundModesElement.querySelectorAll('[data-background-mode]')) {
+    const isActive = button.dataset.backgroundMode === state.backgroundMode
     button.classList.toggle('is-active', isActive)
     button.setAttribute('aria-pressed', String(isActive))
   }
@@ -1493,6 +1542,41 @@ function revokeBackgroundObjectUrl(url = state.backgroundObjectUrl) {
   }
 }
 
+function getFirstSampleForImageMode() {
+  const activeFolder = getActiveBackgroundFolder()
+  if (state.backgroundSampleId) {
+    const activeSample = backgroundSamplesById.get(state.backgroundSampleId)
+    if (activeSample) {
+      return activeSample
+    }
+  }
+
+  return activeFolder?.samples[0] ?? initialBackgroundSample ?? null
+}
+
+async function enterImageMode() {
+  const sample = getFirstSampleForImageMode()
+
+  if (!sample) {
+    await applyBackground({
+      url: '',
+      folderId: state.backgroundFolderId,
+      folderName: state.backgroundFolderName,
+      backgroundMode: 'none',
+    })
+    return
+  }
+
+  await applyBackground({
+    url: sample.url,
+    name: sample.name,
+    sampleId: sample.id,
+    folderId: sample.folderId,
+    folderName: sample.folderName,
+    backgroundMode: 'image',
+  })
+}
+
 async function applyBackground({
   url,
   name = '',
@@ -1561,13 +1645,32 @@ backgroundInput.addEventListener('change', async (event) => {
   })
 })
 
-backgroundFoldersElement.addEventListener('click', async (event) => {
-  const modeButton = event.target.closest('[data-background-mode="vector"]')
-  if (modeButton) {
+backgroundModesElement.addEventListener('click', async (event) => {
+  const modeButton = event.target.closest('[data-background-mode]')
+  if (!modeButton) {
+    return
+  }
+
+  const nextMode = modeButton.dataset.backgroundMode
+  if (nextMode === 'vector') {
     enterVectorMode()
     return
   }
 
+  if (nextMode === 'image') {
+    await enterImageMode()
+    return
+  }
+
+  await applyBackground({
+    url: '',
+    folderId: state.backgroundFolderId,
+    folderName: state.backgroundFolderName,
+    backgroundMode: 'none',
+  })
+})
+
+backgroundFoldersElement.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-background-folder]')
   if (!button) {
     return
@@ -1612,15 +1715,6 @@ backgroundSamples.addEventListener('click', async (event) => {
     folderId: sample.folderId,
     folderName: sample.folderName,
     backgroundMode: 'image',
-  })
-})
-
-clearBackgroundButton.addEventListener('click', async () => {
-  await applyBackground({
-    url: '',
-    folderId: state.backgroundFolderId,
-    folderName: state.backgroundFolderName,
-    backgroundMode: 'none',
   })
 })
 
@@ -1811,6 +1905,7 @@ installButton.addEventListener('click', async () => {
 sortPreviewIcons()
 updateSortButton()
 renderColorFields()
+renderBackgroundModes()
 renderBackgroundFolders()
 renderBackgroundSamples()
 updateBackgroundSampleSelection()
