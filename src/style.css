@@ -165,6 +165,61 @@ h2 {
   gap: 0.75rem;
 }
 
+.background-folders {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.background-folder {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  text-align: left;
+}
+
+.background-folder:hover {
+  transform: translateY(-1px);
+}
+
+.background-folder.is-active {
+  border-color: rgba(56, 189, 248, 0.8);
+  box-shadow:
+    0 0 0 2px rgba(56, 189, 248, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.background-folder-thumb-wrap {
+  display: block;
+  width: 38px;
+  height: 38px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.background-folder-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.background-folder-name {
+  font-size: 0.78rem;
+  line-height: 1.15;
+  font-weight: 600;
+  color: #dbe4ff;
+  word-break: break-word;
+}
+
 .background-sample-group {
   display: flex;
   flex-direction: column;
@@ -182,7 +237,7 @@ h2 {
 
 .background-sample-grid {
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 0.5rem;
 }
 

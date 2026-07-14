@@ -11,6 +11,7 @@ import {
   getPreviewTileBackdrop,
 } from './color-palette.js'
 import {
+  buildBackgroundAssetFilenamePart,
   buildSingleIconDownloadFilename,
   toSafeFilenamePart,
 } from './download-filename.js'
@@ -23,7 +24,7 @@ const objectUrlRevokeDelayMs = 1000
 const VIBRANT_COLORS = ['#ff0000', '#ff8c00', '#ffd700', '#00c800', '#00bcd4', '#2979ff', '#9c27b0', '#e91e63']
 const PASTEL_COLORS  = ['#ffb3b3', '#ffd9b3', '#fff4b3', '#b3ffb3', '#b3f0ff', '#b3c8ff', '#d9b3ff', '#ffb3e6']
 const MORANDI_COLORS = ['#b5a99a', '#9aaa9f', '#8fa3b1', '#b1978f', '#a8b19a', '#b09fac', '#c4b49b', '#8e9999']
-const quickStartBackgroundModules = import.meta.glob('../assets/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
+const quickStartBackgroundModules = import.meta.glob('../assets/**/*.{avif,gif,jpeg,jpg,png,svg,webp}', {
   eager: true,
   import: 'default',
 })
@@ -110,50 +111,117 @@ function toTitleCase(value) {
   return value.replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
+function stripFolderSuffix(value) {
+  return value.replace(/_folder$/i, '')
+}
+
+function formatFolderLabel(folderName) {
+  return toTitleCase(stripFolderSuffix(folderName).replace(/[-_]+/g, ' '))
+}
+
 function formatBackgroundSampleLabel(filePath) {
   const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? 'Background'
   return toTitleCase(fileName.replace(/[-_]+/g, ' '))
 }
 
-function getQuickStartBackgroundSampleGroups() {
-  const samples = Object.entries(quickStartBackgroundModules)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([filePath, url], index) => {
-      const fallbackFileName = `background-${index + 1}`
-      const fileName = filePath.split('/').pop()?.replace(/\.[^.]+$/, '') ?? fallbackFileName
-      const safeFileName = toSafeFilenamePart(fileName)
-      return {
-        id: `asset-${safeFileName}`,
-        name: safeFileName,
-        label: formatBackgroundSampleLabel(filePath),
-        url,
-      }
-    })
+function parseAssetFolderAndFile(filePath) {
+  const match = filePath.match(/^\.\.\/assets\/([^/]+)\/([^/]+)$/)
 
-  if (samples.length === 0) {
-    return fallbackBackgroundSampleGroups
+  if (match) {
+    return {
+      folderName: match[1],
+      fileNameWithExtension: match[2],
+    }
   }
 
-  return [
-    {
-      label: 'Quick start',
-      samples,
-    },
-  ]
+  const fallbackFile = filePath.split('/').pop() ?? 'background.png'
+  return {
+    folderName: 'quick-start-folder',
+    fileNameWithExtension: fallbackFile,
+  }
 }
 
-const backgroundSampleGroups = getQuickStartBackgroundSampleGroups()
-const backgroundSamplesById = new Map()
-const initialBackgroundSample = backgroundSampleGroups.find((group) => group.samples.length > 0)?.samples[0] ?? null
+function getQuickStartBackgroundFolders() {
+  const folderEntriesByName = new Map()
+  const sortedEntries = Object.entries(quickStartBackgroundModules).sort(([left], [right]) => left.localeCompare(right))
 
-for (const group of backgroundSampleGroups) {
-  for (const sample of group.samples) {
+  for (const [filePath, url] of sortedEntries) {
+    const { folderName, fileNameWithExtension } = parseAssetFolderAndFile(filePath)
+    const fileName = fileNameWithExtension.replace(/\.[^.]+$/, '')
+    const safeFileName = toSafeFilenamePart(fileName) || 'background'
+    const folderId = `folder-${toSafeFilenamePart(folderName) || 'assets'}`
+    const folderDisplayName = stripFolderSuffix(folderName)
+    const sampleId = `asset-${folderId}-${safeFileName}`
+    const sample = {
+      id: sampleId,
+      name: safeFileName,
+      label: formatBackgroundSampleLabel(filePath),
+      url,
+      folderId,
+      folderName: folderDisplayName,
+    }
+
+    if (!folderEntriesByName.has(folderName)) {
+      folderEntriesByName.set(folderName, {
+        id: folderId,
+        name: folderDisplayName,
+        label: formatFolderLabel(folderName),
+        samples: [sample],
+      })
+      continue
+    }
+
+    folderEntriesByName.get(folderName).samples.push(sample)
+  }
+
+  const folders = [...folderEntriesByName.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, folder]) => ({
+      ...folder,
+      previewUrl: folder.samples[0]?.url ?? '',
+    }))
+
+  if (folders.length > 0) {
+    return folders
+  }
+
+  return fallbackBackgroundSampleGroups.map((group, groupIndex) => {
+    const folderName = toSafeFilenamePart(group.label) || `group-${groupIndex + 1}`
+    const folderId = `folder-${folderName}`
+    const samples = group.samples.map((sample, sampleIndex) => ({
+      ...sample,
+      id: `${folderId}-sample-${sampleIndex + 1}`,
+      folderId,
+      folderName: folderName,
+      name: toSafeFilenamePart(sample.name || sample.id || `background-${sampleIndex + 1}`) || `background-${sampleIndex + 1}`,
+    }))
+
+    return {
+      id: folderId,
+      name: folderName,
+      label: group.label,
+      previewUrl: samples[0]?.url ?? '',
+      samples,
+    }
+  })
+}
+
+const backgroundFolders = getQuickStartBackgroundFolders()
+const backgroundFoldersById = new Map(backgroundFolders.map((folder) => [folder.id, folder]))
+const backgroundSamplesById = new Map()
+const initialBackgroundFolder = backgroundFolders.find((folder) => folder.samples.length > 0) ?? null
+const initialBackgroundSample = initialBackgroundFolder?.samples[0] ?? null
+
+for (const folder of backgroundFolders) {
+  for (const sample of folder.samples) {
     backgroundSamplesById.set(sample.id, sample)
   }
 }
 
 const state = {
   backgroundObjectUrl: '',
+  backgroundFolderId: initialBackgroundFolder?.id ?? '',
+  backgroundFolderName: initialBackgroundFolder?.name ? toSafeFilenamePart(initialBackgroundFolder.name) : '',
   backgroundSampleId: '',
   backgroundUrl: '',
   backgroundName: '',
@@ -212,6 +280,7 @@ app.innerHTML = `
       <form class="controls" aria-label="Icon pack controls">
         <fieldset class="background-group">
           <legend>Background image</legend>
+          <div id="background-folders" class="background-folders" aria-live="polite"></div>
           <div id="background-samples" class="background-samples" aria-live="polite"></div>
           <div class="background-actions">
             <button id="clear-background" type="button" class="secondary-button">No background</button>
@@ -306,6 +375,7 @@ app.innerHTML = `
 `
 
 const backgroundInput = document.querySelector('#background-input')
+const backgroundFoldersElement = document.querySelector('#background-folders')
 const backgroundSamples = document.querySelector('#background-samples')
 const clearBackgroundButton = document.querySelector('#clear-background')
 const styleSelect = document.querySelector('#style-select')
@@ -568,37 +638,76 @@ function renderPaletteSwatches() {
   `
 }
 
-function renderBackgroundSamples() {
-  backgroundSamples.innerHTML = backgroundSampleGroups
+function getActiveBackgroundFolder() {
+  if (state.backgroundFolderId) {
+    return backgroundFoldersById.get(state.backgroundFolderId) ?? null
+  }
+
+  return initialBackgroundFolder
+}
+
+function renderBackgroundFolders() {
+  backgroundFoldersElement.innerHTML = backgroundFolders
     .map(
-      (group) => `
-        <section class="background-sample-group" aria-label="${group.label} backgrounds">
-          <p class="background-sample-group-title">${group.label}</p>
-          <div class="background-sample-grid">
-            ${group.samples
-              .map(
-                (sample, index) => `
-                  <button
-                    type="button"
-                    class="background-sample${state.backgroundSampleId === sample.id ? ' is-active' : ''}"
-                    data-background-sample="${sample.id}"
-                    aria-pressed="${state.backgroundSampleId === sample.id}"
-                    aria-label="Select ${sample.label} background, sample ${index + 1} of ${group.samples.length}"
-                    title="${sample.label}"
-                  >
-                    <img class="background-sample-image" src="${sample.url}" alt="" />
-                  </button>
-                `,
-              )
-              .join('')}
-          </div>
-        </section>
+      (folder, index) => `
+        <button
+          type="button"
+          class="background-folder${state.backgroundFolderId === folder.id ? ' is-active' : ''}"
+          data-background-folder="${folder.id}"
+          aria-pressed="${state.backgroundFolderId === folder.id}"
+          aria-label="Select ${folder.label} folder, group ${index + 1} of ${backgroundFolders.length}"
+          title="${folder.label}"
+        >
+          <span class="background-folder-thumb-wrap">
+            ${folder.previewUrl ? `<img class="background-folder-thumb" src="${folder.previewUrl}" alt="" />` : ''}
+          </span>
+          <span class="background-folder-name">${folder.label}</span>
+        </button>
       `,
     )
     .join('')
 }
 
+function renderBackgroundSamples() {
+  const activeFolder = getActiveBackgroundFolder()
+
+  if (!activeFolder) {
+    backgroundSamples.innerHTML = ''
+    return
+  }
+
+  backgroundSamples.innerHTML = `
+    <section class="background-sample-group" aria-label="${activeFolder.label} backgrounds">
+      <p class="background-sample-group-title">${activeFolder.label}</p>
+      <div class="background-sample-grid">
+        ${activeFolder.samples
+          .map(
+            (sample, index) => `
+              <button
+                type="button"
+                class="background-sample${state.backgroundSampleId === sample.id ? ' is-active' : ''}"
+                data-background-sample="${sample.id}"
+                aria-pressed="${state.backgroundSampleId === sample.id}"
+                aria-label="Select ${sample.label} background, sample ${index + 1} of ${activeFolder.samples.length}"
+                title="${sample.label}"
+              >
+                <img class="background-sample-image" src="${sample.url}" alt="" />
+              </button>
+            `,
+          )
+          .join('')}
+      </div>
+    </section>
+  `
+}
+
 function updateBackgroundSampleSelection() {
+  for (const button of backgroundFoldersElement.querySelectorAll('[data-background-folder]')) {
+    const isActive = button.dataset.backgroundFolder === state.backgroundFolderId
+    button.classList.toggle('is-active', isActive)
+    button.setAttribute('aria-pressed', String(isActive))
+  }
+
   for (const button of backgroundSamples.querySelectorAll('[data-background-sample]')) {
     const isActive = button.dataset.backgroundSample === state.backgroundSampleId
     button.classList.toggle('is-active', isActive)
@@ -718,8 +827,11 @@ async function exportIconPack() {
     const exportableIcons = icons.filter((iconName) => glyphMap.has(`fa-${iconName}`))
     const { family, weight } = exportFontVariants[state.style]
     const backgroundImage = state.backgroundUrl ? await loadImage(state.backgroundUrl) : null
-    const backgroundFilenamePart = toSafeFilenamePart(state.backgroundName || '')
-    const zipBaseName = backgroundFilenamePart || 'icon-pack'
+    const backgroundFilenamePart = buildBackgroundAssetFilenamePart({
+      backgroundFolder: state.backgroundFolderName,
+      backgroundName: state.backgroundName,
+    })
+    const zipBaseName = state.backgroundUrl ? backgroundFilenamePart : 'icon-pack'
     state.exportProcessedCount = 0
     state.exportTotalCount = exportableIcons.length
     updateExportButton()
@@ -776,6 +888,7 @@ async function downloadPreviewIcon(iconClassName) {
     triggerBlobDownload(
       blob,
       buildSingleIconDownloadFilename({
+        backgroundFolder: state.backgroundFolderName,
         backgroundName: state.backgroundName,
         iconName,
         colors: state.colors,
@@ -959,12 +1072,21 @@ function revokeBackgroundObjectUrl(url = state.backgroundObjectUrl) {
   }
 }
 
-async function applyBackground({ url, name = '', sampleId = '', isBlobUrl = false }) {
+async function applyBackground({
+  url,
+  name = '',
+  sampleId = '',
+  folderId = '',
+  folderName = '',
+  isBlobUrl = false,
+}) {
   const previousBackgroundObjectUrl = state.backgroundObjectUrl
   revokeBackgroundObjectUrl(previousBackgroundObjectUrl)
 
   state.backgroundUrl = url
   state.backgroundName = name ? toSafeFilenamePart(name) : ''
+  state.backgroundFolderId = folderId
+  state.backgroundFolderName = folderName ? toSafeFilenamePart(folderName) : ''
   state.backgroundSampleId = sampleId
   state.backgroundObjectUrl = isBlobUrl ? url : ''
   state.palette = []
@@ -1015,6 +1137,32 @@ backgroundInput.addEventListener('change', async (event) => {
   })
 })
 
+backgroundFoldersElement.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-background-folder]')
+  if (!button) {
+    return
+  }
+
+  const folder = backgroundFoldersById.get(button.dataset.backgroundFolder)
+  if (!folder || folder.samples.length === 0) {
+    return
+  }
+
+  state.backgroundFolderId = folder.id
+  renderBackgroundFolders()
+  renderBackgroundSamples()
+  updateBackgroundSampleSelection()
+
+  const firstSample = folder.samples[0]
+  await applyBackground({
+    url: firstSample.url,
+    name: firstSample.name,
+    sampleId: firstSample.id,
+    folderId: folder.id,
+    folderName: folder.name,
+  })
+})
+
 backgroundSamples.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-background-sample]')
   if (!button) {
@@ -1030,11 +1178,17 @@ backgroundSamples.addEventListener('click', async (event) => {
     url: sample.url,
     name: sample.name,
     sampleId: sample.id,
+    folderId: sample.folderId,
+    folderName: sample.folderName,
   })
 })
 
 clearBackgroundButton.addEventListener('click', async () => {
-  await applyBackground({ url: '' })
+  await applyBackground({
+    url: '',
+    folderId: state.backgroundFolderId,
+    folderName: state.backgroundFolderName,
+  })
 })
 
 styleSelect.addEventListener('change', (event) => {
@@ -1152,14 +1306,17 @@ exportButton.addEventListener('click', () => {
 sortPreviewIcons()
 updateSortButton()
 renderColorFields()
+renderBackgroundFolders()
 renderBackgroundSamples()
 updateExportButton()
 
 if (initialBackgroundSample) {
   applyBackground({
     url: initialBackgroundSample.url,
-    name: initialBackgroundSample.id,
+    name: initialBackgroundSample.name,
     sampleId: initialBackgroundSample.id,
+    folderId: initialBackgroundFolder?.id ?? '',
+    folderName: initialBackgroundFolder?.name ?? '',
   })
 } else {
   updateBackgroundSampleSelection()
